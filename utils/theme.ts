@@ -1,5 +1,14 @@
 // Amber CRT Theme Configuration
 
+// Dark Mode Optimized Colors (OLED-friendly, prevents halation)
+const DARK_MODE = {
+  primaryText: '#E8E8ED',    // Off-white for primary text (prevents halation)
+  secondaryText: '#9E9E9E',  // Secondary text
+  tertiaryText: '#6E6E73',   // Tertiary labels
+  disabledText: '#48484A',   // Disabled state
+  background: '#000000',     // Pure black for OLED
+};
+
 export const Colors = {
   // Primary Amber palette (improved for better readability)
   amber: {
@@ -31,6 +40,8 @@ export const Colors = {
     error: '#FF4444',     // Softer but visible red
     info: '#00CCFF',      // Clearer info blue
   },
+  // Dark Mode optimized
+  darkMode: DARK_MODE,
   // Neutral
   black: '#000000',
   white: '#FFFFFF',
@@ -53,10 +64,16 @@ export const Typography = {
     lg: 18,
     xl: 24,
     xxl: 32,
-    // New specialized sizes
-    label: 11,      // Form labels
-    equation: 14,   // Math equations
-    caption: 9,     // Small captions
+    // UI Standard sizes (2025-2026)
+    uiLabel: 12,       // UI labels (was 10-12)
+    uiBody: 14,        // UI body text
+    uiNav: 15,         // Navigation text
+    metadata: 12,      // Metadata/caption (was 11)
+    documentTitle: 16, // Document titles (was 14)
+    // Specialized sizes
+    label: 11,         // Form labels
+    equation: 14,      // Math equations
+    caption: 9,        // Small captions
   },
   family: {
     mono: 'Courier New', // Fallback, will use custom font
@@ -72,6 +89,8 @@ export const Typography = {
     tight: 1.2,
     normal: 1.5,
     relaxed: 1.8,
+    // Improved readability (2025-2026)
+    readable: 1.6,     // Better for body text
   },
 } as const;
 
