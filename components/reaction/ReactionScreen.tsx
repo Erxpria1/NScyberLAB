@@ -31,12 +31,15 @@ const BEAM_PADDING = 40;
 const BeamVisualization: React.FC = () => {
   const { beamLength, supports, loads } = useReactionStore();
 
+  // Scale: pixels per meter
   const scale = (SCREEN_WIDTH - 2 * BEAM_PADDING) / Math.max(beamLength, 1);
+
+  // Position to pixel converter
+  const posToPixel = (pos: number) => BEAM_PADDING + pos * scale;
 
   // Render support symbol
   const renderSupport = (support: Support, index: number) => {
-    const x = BEAM_PADDING + support.position * scale;
-    const y = BEAM_VIEW_HEIGHT / 2;
+    const x = posToPixel(support.position);
 
     return (
       <View key={`support-${index}`} style={[styles.supportSymbol, { left: x - 15 }]}>
@@ -63,26 +66,22 @@ const BeamVisualization: React.FC = () => {
   // Render load symbols
   const renderLoads = () => {
     return loads.map((load, index) => {
-      let x = 0;
-      let width = 0;
-      let label = '';
-
       if (load.type === LoadType.POINT) {
-        x = load.position * scale;
-        width = 2;
-        label = `${Math.abs(load.magnitude).toFixed(1)}kN`;
+        const x = posToPixel(load.position);
+        const label = `${Math.abs(load.magnitude).toFixed(1)}kN`;
         return (
-          <View key={`load-${index}`} style={[styles.loadPoint, { left: BEAM_PADDING + x - 1 }]}>
+          <View key={`load-${index}`} style={[styles.loadPoint, { left: x - 20 }]}>
             <Text style={styles.loadArrow}>↓</Text>
             <Text style={styles.loadLabelSmall}>{label}</Text>
           </View>
         );
       } else if (load.type === LoadType.UDL) {
-        const startX = load.startPosition * scale;
-        const endX = load.endPosition * scale;
-        label = `${Math.abs(load.magnitude).toFixed(1)}kN/m`;
+        const startX = posToPixel(load.startPosition);
+        const endX = posToPixel(load.endPosition);
+        const width = endX - startX;
+        const label = `${Math.abs(load.magnitude).toFixed(1)}kN/m`;
         return (
-          <View key={`load-${index}`} style={[styles.loadUDL, { left: BEAM_PADDING + startX, width: endX - startX }]}>
+          <View key={`load-${index}`} style={[styles.loadUDL, { left: startX, width }]}>
             <Text style={styles.loadLabelSmall}>{label}</Text>
             <View style={styles.udlArrows}>
               <Text style={styles.udlArrow}>↓↓↓</Text>
@@ -90,20 +89,21 @@ const BeamVisualization: React.FC = () => {
           </View>
         );
       } else if (load.type === LoadType.MOMENT) {
-        x = load.position * scale;
-        label = `${load.magnitude.toFixed(1)}kNm`;
+        const x = posToPixel(load.position);
+        const label = `${load.magnitude.toFixed(1)}kNm`;
         return (
-          <View key={`load-${index}`} style={[styles.loadMoment, { left: BEAM_PADDING + x - 15 }]}>
+          <View key={`load-${index}`} style={[styles.loadMoment, { left: x - 15 }]}>
             <Text style={styles.loadLabelSmall}>{label}</Text>
             <Text style={styles.momentSymbol}>↻</Text>
           </View>
         );
       } else if (load.type === LoadType.TRIANGULAR) {
-        const startX = load.startPosition * scale;
-        const endX = load.endPosition * scale;
-        label = `△${Math.abs(load.maxMagnitude).toFixed(1)}`;
+        const startX = posToPixel(load.startPosition);
+        const endX = posToPixel(load.endPosition);
+        const width = endX - startX;
+        const label = `△${Math.abs(load.maxMagnitude).toFixed(1)}`;
         return (
-          <View key={`load-${index}`} style={[styles.loadTriangular, { left: BEAM_PADDING + startX, width: endX - startX }]}>
+          <View key={`load-${index}`} style={[styles.loadTriangular, { left: startX, width }]}>
             <Text style={styles.loadLabelSmall}>{label}</Text>
           </View>
         );

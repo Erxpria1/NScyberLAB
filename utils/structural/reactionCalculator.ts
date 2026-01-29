@@ -19,35 +19,35 @@ export enum LoadType {
 
 export interface PointLoad {
   type: LoadType.POINT;
-  position: number; // Distance from left support (m)
-  magnitude: number; // Force (kN) - positive = downward
+  position: number; // Distance from left end (m)
+  magnitude: number; // Force (kN) - negative = downward
 }
 
 export interface UDLoad {
   type: LoadType.UDL;
-  startPosition: number; // Start distance (m)
-  endPosition: number; // End distance (m)
-  magnitude: number; // Load intensity (kN/m) - positive = downward
+  startPosition: number; // Start distance from left end (m)
+  endPosition: number; // End distance from left end (m)
+  magnitude: number; // Load intensity (kN/m) - negative = downward
 }
 
 export interface MomentLoad {
   type: LoadType.MOMENT;
-  position: number; // Distance from left support (m)
+  position: number; // Distance from left end (m)
   magnitude: number; // Moment (kNm) - positive = clockwise
 }
 
 export interface TriangularLoad {
   type: LoadType.TRIANGULAR;
-  startPosition: number;
-  endPosition: number;
-  maxMagnitude: number; // Peak load (kN/m) at endPosition
+  startPosition: number; // Start distance from left end (m)
+  endPosition: number; // End distance from left end (m)
+  maxMagnitude: number; // Peak load (kN/m) at endPosition - negative = downward
 }
 
 export type Load = PointLoad | UDLoad | MomentLoad | TriangularLoad;
 
 export interface Support {
   type: SupportType;
-  position: number; // Distance from reference (m)
+  position: number; // Distance from left end (m)
 }
 
 export interface BeamConfig {
@@ -56,8 +56,14 @@ export interface BeamConfig {
   loads: Load[];
 }
 
+export interface ReactionForce {
+  horizontal: number; // kN, positive = right
+  vertical: number; // kN, positive = up
+  moment: number; // kNm, positive = counterclockwise
+}
+
 export interface ReactionResults {
-  reactions: Map<number, { horizontal: number; vertical: number; moment: number }>;
+  reactions: Map<number, ReactionForce>;
   isValid: boolean;
   errorMessage?: string;
 }
@@ -136,10 +142,17 @@ export const PRESET_LABELS: Record<string, string> = {
 
 class ReactionCalculator {
   private config: BeamConfig;
-  private EPSILON = 1e-6;
+  private readonly EPSILON = 1e-9;
 
   constructor(config: BeamConfig) {
     this.config = config;
+  }
+
+  // Get sorted supports with their original indices
+  private getSortedSupportsWithOriginalIndices(): Array<{ support: Support; originalIndex: number }> {
+    return this.config.supports
+      .map((support, originalIndex) => ({ support, originalIndex }))
+      .sort((a, b) => a.support.position - b.support.position);
   }
 
   // Calculate equivalent point load and position for distributed loads
@@ -158,6 +171,7 @@ class ReactionCalculator {
       case LoadType.TRIANGULAR: {
         const length = load.endPosition - load.startPosition;
         const force = (load.maxMagnitude * length) / 2;
+        // Centroid of triangle from start
         const position = load.startPosition + (length * 2) / 3;
         return { force, position };
       }
@@ -204,265 +218,246 @@ class ReactionCalculator {
         reactions: new Map(),
         isValid: false,
         errorMessage: unknowns > 3
-          ? 'Sistem hiperstatik! ' + unknowns + ' bilinmeyen var.'
-          : 'Sistem mekaniğe bağlı değil (istikrarsız).',
+          ? `Sistem hiperstatik! ${unknowns} bilinmeyen var (3 olmalı).`
+          : 'Sistem mekaniğe bağlı değil (istikrarsız - yetersiz mesnet).',
       };
     }
 
-    // Build system of equations for statically determinate structures
-    const reactions = new Map();
-    const supports = this.config.supports.sort((a, b) => a.position - b.position);
+    // Get sorted supports with original indices
+    const sortedSupports = this.getSortedSupportsWithOriginalIndices();
 
-    // Initialize reaction unknowns
-    const unknownList: { key: string; supportIndex: number; type: string }[] = [];
-    for (let i = 0; i < supports.length; i++) {
-      const s = supports[i];
-      if (s.type === SupportType.FIXED) {
-        unknownList.push({ key: `${i}_H`, supportIndex: i, type: 'H' });
-        unknownList.push({ key: `${i}_V`, supportIndex: i, type: 'V' });
-        unknownList.push({ key: `${i}_M`, supportIndex: i, type: 'M' });
-      } else if (s.type === SupportType.PINNED) {
-        unknownList.push({ key: `${i}_H`, supportIndex: i, type: 'H' });
-        unknownList.push({ key: `${i}_V`, supportIndex: i, type: 'V' });
-      } else if (s.type === SupportType.ROLLER) {
-        unknownList.push({ key: `${i}_V`, supportIndex: i, type: 'V' });
-      }
+    // Build reaction map using ORIGINAL indices
+    const reactions = new Map<number, ReactionForce>();
+    for (const { originalIndex } of sortedSupports) {
+      reactions.set(originalIndex, { horizontal: 0, vertical: 0, moment: 0 });
     }
 
-    // If we have exactly 3 unknowns, solve directly
-    if (unknownList.length === 3) {
-      const solution = this.solveThreeUnknowns(supports, unknownList);
-      for (const [key, value] of Object.entries(solution)) {
-        const [idx, type] = key.split('_');
-        const supportIdx = parseInt(idx);
-        if (!reactions.has(supportIdx)) {
-          reactions.set(supportIdx, { horizontal: 0, vertical: 0, moment: 0 });
-        }
-        const r = reactions.get(supportIdx)!;
-        if (type === 'H') r.horizontal = value;
-        if (type === 'V') r.vertical = value;
-        if (type === 'M') r.moment = value;
-      }
-    }
-
-    // Verify equilibrium
-    const valid = this.verifyEquilibrium(reactions, supports);
-
-    return {
-      reactions,
-      isValid: valid,
-      errorMessage: valid ? undefined : 'Denge denklemleri sağlanamadı.',
-    };
-  }
-
-  private solveThreeUnknowns(
-    supports: Support[],
-    unknowns: { key: string; supportIndex: number; type: string }[]
-  ): Record<string, number> {
-    const result: Record<string, number> = {};
-
-    // Calculate total loads and moments about reference (leftmost point)
-    let totalFy = 0; // Sum of vertical forces
-    let totalM = 0; // Sum of moments about reference
+    // Calculate total loads about leftmost point (x=0 reference)
+    let totalFy = 0; // Sum of vertical forces (downward positive for loads)
+    let totalM = 0; // Sum of moments about x=0
     let totalFx = 0; // Sum of horizontal forces
-
-    const refPoint = Math.min(...supports.map((s) => s.position));
 
     for (const load of this.config.loads) {
       const equiv = this.getEquivalentLoad(load);
-      totalFy -= equiv.force; // Positive load = downward
-      totalM -= equiv.force * (equiv.position - refPoint);
-      if (equiv.moment) totalM -= equiv.moment;
+      totalFy += equiv.force; // Load magnitude is negative for downward
+      totalM += equiv.force * equiv.position; // M = F * d
+      if (equiv.moment) totalM += equiv.moment;
     }
 
     // Solve based on support configuration
-    // This is a simplified solver for common cases
+    const supports = sortedSupports.map(s => s.support);
 
     // Case 1: Simply supported (Pin + Roller)
-    const pinSupport = supports.find((s) => s.type === SupportType.PINNED);
-    const rollerSupport = supports.find((s) => s.type === SupportType.ROLLER);
+    const pinIdx = sortedSupports.findIndex(s => s.support.type === SupportType.PINNED);
+    const rollerIdx = sortedSupports.findIndex(s => s.support.type === SupportType.ROLLER);
 
-    if (pinSupport && rollerSupport) {
+    if (pinIdx >= 0 && rollerIdx >= 0) {
+      const pinSupport = supports[pinIdx];
+      const rollerSupport = supports[rollerIdx];
+      const pinOriginalIdx = sortedSupports[pinIdx].originalIndex;
+      const rollerOriginalIdx = sortedSupports[rollerIdx].originalIndex;
+
       const L = rollerSupport.position - pinSupport.position;
-      const R_roller = -totalM / L;
+
+      // Moment equilibrium about pin support
+      // ΣM_pin = 0: R_roller * L + Σ(M_loads_about_pin) = 0
+      let momentAboutPin = 0;
+      for (const load of this.config.loads) {
+        const equiv = this.getEquivalentLoad(load);
+        const distFromPin = equiv.position - pinSupport.position;
+        momentAboutPin += equiv.force * distFromPin;
+        if (equiv.moment) momentAboutPin += equiv.moment;
+      }
+
+      const R_roller = -momentAboutPin / L;
       const R_pin = -(totalFy + R_roller);
 
-      result[`${supports.indexOf(rollerSupport)}_V`] = R_roller;
-      result[`${supports.indexOf(pinSupport)}_V`] = R_pin;
-      result[`${supports.indexOf(pinSupport)}_H`] = totalFx;
-      return result;
+      reactions.get(rollerOriginalIdx)!.vertical = R_roller;
+      reactions.get(pinOriginalIdx)!.vertical = R_pin;
+      reactions.get(pinOriginalIdx)!.horizontal = 0; // No horizontal loads
+
+      return {
+        reactions,
+        isValid: this.verifyEquilibrium(reactions),
+      };
     }
 
     // Case 2: Cantilever (Fixed only)
-    const fixedSupport = supports.find((s) => s.type === SupportType.FIXED);
-    if (fixedSupport && supports.length === 1) {
-      const idx = supports.indexOf(fixedSupport);
-      result[`${idx}_V`] = -totalFy;
-      result[`${idx}_H`] = -totalFx;
-      result[`${idx}_M`] = -totalM;
-      return result;
-    }
+    if (supports.length === 1 && supports[0].type === SupportType.FIXED) {
+      const originalIdx = sortedSupports[0].originalIndex;
+      const supportPos = supports[0].position;
 
-    // Case 3: Propped cantilever (Fixed + Roller)
-    if (fixedSupport && rollerSupport) {
-      const L = rollerSupport.position - fixedSupport.position;
-      // For a propped cantilever, use compatibility: deflection at roller = 0
-      // Simplified: solve using the 3-equation system with moment at fixed as unknown
-      const M_fixed = this.solveProppedCantilever(fixedSupport.position, rollerSupport.position);
-      result[`${supports.indexOf(fixedSupport)}_V`] = -totalFy - M_fixed / L;
-      result[`${supports.indexOf(fixedSupport)}_M`] = M_fixed;
-      result[`${supports.indexOf(rollerSupport)}_V`] = -M_fixed / L;
-      return result;
-    }
+      // Calculate forces and moments about the fixed support
+      let Fy = 0;
+      let M = 0;
 
-    // Case 4: Fixed-Fixed (indeterminate, but using approximate method)
-    const fixedSupports = supports.filter((s) => s.type === SupportType.FIXED);
-    if (fixedSupports.length === 2) {
-      return this.solveFixedFixed(supports);
-    }
-
-    return result;
-  }
-
-  private solveProppedCantilever(x1: number, x2: number): number {
-    // Calculate fixed end moment for propped cantilever with loads
-    let M_fixed = 0;
-
-    for (const load of this.config.loads) {
-      const equiv = this.getEquivalentLoad(load);
-      const a = equiv.position - x1;
-      const L = x2 - x1;
-
-      if (load.type === LoadType.POINT) {
-        M_fixed += -(equiv.force * a * (L - a) * (2 * L - a)) / (2 * L * L);
-      } else if (load.type === LoadType.UDL) {
-        const udLoad = load as UDLoad;
-        const a = udLoad.startPosition - x1;
-        const b = udLoad.endPosition - x1;
-        M_fixed += -(equiv.force * (L * L - 3 * a * a + 2 * b * b)) / (8 * L);
+      for (const load of this.config.loads) {
+        const equiv = this.getEquivalentLoad(load);
+        Fy += equiv.force;
+        const distFromSupport = equiv.position - supportPos;
+        M += equiv.force * distFromSupport;
+        if (equiv.moment) M += equiv.moment;
       }
+
+      // Reactions oppose the loads
+      reactions.get(originalIdx)!.vertical = -Fy;
+      reactions.get(originalIdx)!.horizontal = 0;
+      reactions.get(originalIdx)!.moment = -M;
+
+      return {
+        reactions,
+        isValid: this.verifyEquilibrium(reactions),
+      };
     }
 
-    return M_fixed;
-  }
+    // Case 3: Propped cantilever (Fixed + Roller) - hyperstatik, yaklaşık çözüm
+    const fixedIdx = sortedSupports.findIndex(s => s.support.type === SupportType.FIXED);
+    if (fixedIdx >= 0 && rollerIdx >= 0) {
+      // This requires compatibility equation - using simplified approach
+      const fixedSupport = supports[fixedIdx];
+      const rollerSupport = supports[rollerIdx];
+      const fixedOriginalIdx = sortedSupports[fixedIdx].originalIndex;
+      const rollerOriginalIdx = sortedSupports[rollerIdx].originalIndex;
 
-  private solveFixedFixed(supports: Support[]): Record<string, number> {
-    const result: Record<string, number> = {};
-    const L = supports[1].position - supports[0].position;
+      const L = rollerSupport.position - fixedSupport.position;
 
-    // Simplified fixed-fixed analysis
-    let totalLoad = 0;
-    let momentAboutLeft = 0;
+      // Approximate: Treat as simply supported with moment at fixed end
+      let momentAboutFixed = 0;
+      for (const load of this.config.loads) {
+        const equiv = this.getEquivalentLoad(load);
+        const distFromFixed = equiv.position - fixedSupport.position;
+        momentAboutFixed += equiv.force * distFromFixed;
+        if (equiv.moment) momentAboutFixed += equiv.moment;
+      }
 
-    for (const load of this.config.loads) {
-      const equiv = this.getEquivalentLoad(load);
-      totalLoad += equiv.force;
-      momentAboutLeft += equiv.force * (equiv.position - supports[0].position);
+      const R_roller = -momentAboutFixed / L;
+      const R_fixed = -(totalFy + R_roller);
+
+      reactions.get(rollerOriginalIdx)!.vertical = R_roller;
+      reactions.get(fixedOriginalIdx)!.vertical = R_fixed;
+      reactions.get(fixedOriginalIdx)!.moment = 0; // Simplified
+
+      return {
+        reactions,
+        isValid: this.verifyEquilibrium(reactions),
+      };
     }
 
-    // For symmetric loading on fixed-fixed beam
-    const R1 = -totalLoad / 2;
-    const R2 = -totalLoad / 2;
-    const M1 = -momentAboutLeft / 2;
-    const M2 = momentAboutLeft / 2;
-
-    result[`0_V`] = R1;
-    result[`0_M`] = M1;
-    result[`0_H`] = 0;
-    result[`1_V`] = R2;
-    result[`1_M`] = M2;
-    result[`1_H`] = 0;
-
-    return result;
+    return {
+      reactions,
+      isValid: false,
+      errorMessage: 'Desteklenmeyen mesnet konfigürasyonu.',
+    };
   }
 
-  private verifyEquilibrium(
-    reactions: Map<number, { horizontal: number; vertical: number; moment: number }>,
-    supports: Support[]
-  ): boolean {
+  private verifyEquilibrium(reactions: Map<number, ReactionForce>): boolean {
     let sumFx = 0;
     let sumFy = 0;
     let sumM = 0;
 
-    const refPoint = supports[0]?.position || 0;
-
-    for (const [_, r] of reactions) {
+    // Sum reactions
+    for (const [idx, r] of reactions) {
+      const supportPos = this.config.supports[idx].position;
       sumFx += r.horizontal;
       sumFy += r.vertical;
-      sumM += r.moment;
+      sumM += r.moment + r.vertical * supportPos; // Moment about x=0
     }
 
+    // Sum loads
     for (const load of this.config.loads) {
       const equiv = this.getEquivalentLoad(load);
       sumFy += equiv.force;
-      sumM += equiv.force * (equiv.position - refPoint);
+      sumM += equiv.force * equiv.position;
       if (equiv.moment) sumM += equiv.moment;
     }
 
+    const tolerance = 1e-6;
     return (
-      Math.abs(sumFx) < this.EPSILON * 100 &&
-      Math.abs(sumFy) < this.EPSILON * 100 &&
-      Math.abs(sumM) < this.EPSILON * 100
+      Math.abs(sumFx) < tolerance &&
+      Math.abs(sumFy) < tolerance &&
+      Math.abs(sumM) < tolerance
     );
   }
 
   // Calculate internal forces (Shear & Moment) along the beam
   calculateInternalForces(results: ReactionResults): AnalysisResults {
     const points: InternalForcesPoint[] = [];
-    const numPoints = 100;
+    const numPoints = 200; // More points for accuracy
     const dx = this.config.length / (numPoints - 1);
 
-    // Get support positions for reference
-    const supportPositions = this.config.supports.map((s) => s.position);
+    // Create critical points list (supports, load positions, load starts/ends)
+    const criticalPoints = new Set<number>([0, this.config.length]);
 
+    for (const s of this.config.supports) {
+      criticalPoints.add(s.position);
+    }
+    for (const load of this.config.loads) {
+      if (load.type === LoadType.POINT || load.type === LoadType.MOMENT) {
+        criticalPoints.add(load.position);
+      } else {
+        criticalPoints.add(load.startPosition);
+        criticalPoints.add(load.endPosition);
+      }
+    }
+
+    // Generate points including critical points
+    const xValues: number[] = [];
     for (let i = 0; i < numPoints; i++) {
-      const x = (i * dx);
+      xValues.push(i * dx);
+    }
+    // Add critical points
+    for (const cp of criticalPoints) {
+      if (!xValues.some(x => Math.abs(x - cp) < 1e-6)) {
+        xValues.push(cp);
+      }
+    }
+    xValues.sort((a, b) => a - b);
 
-      // Calculate shear at x
+    for (const x of xValues) {
       let shear = 0;
       let moment = 0;
 
-      // Add reaction contributions
-      for (const [idx, reaction] of results.reactions) {
+      // Add reaction contributions (reactions oppose loads)
+      for (const [idx, r] of results.reactions) {
         const supportPos = this.config.supports[idx].position;
         if (x >= supportPos - this.EPSILON) {
-          shear += reaction.vertical;
-          moment += reaction.vertical * (x - supportPos) + reaction.moment;
+          shear += r.vertical;
+          moment += r.vertical * (x - supportPos) + r.moment;
         }
       }
 
       // Subtract load contributions
       for (const load of this.config.loads) {
-        const equiv = this.getEquivalentLoad(load);
-
         if (load.type === LoadType.POINT) {
           if (x >= load.position - this.EPSILON) {
-            shear -= load.magnitude;
-            moment -= load.magnitude * (x - load.position);
+            shear += load.magnitude; // magnitude is negative (downward)
+            moment += load.magnitude * (x - load.position);
           }
         } else if (load.type === LoadType.UDL) {
-          if (x > load.startPosition) {
+          if (x > load.startPosition + this.EPSILON) {
             const loadEnd = Math.min(x, load.endPosition);
             const loadedLength = loadEnd - load.startPosition;
             const loadForce = load.magnitude * loadedLength;
             const loadCentroid = load.startPosition + loadedLength / 2;
-            shear -= loadForce;
-            moment -= loadForce * (x - loadCentroid);
+            shear += loadForce;
+            moment += loadForce * (x - loadCentroid);
           }
         } else if (load.type === LoadType.TRIANGULAR) {
-          if (x > load.startPosition) {
+          if (x > load.startPosition + this.EPSILON) {
             const loadEnd = Math.min(x, load.endPosition);
             const loadedLength = loadEnd - load.startPosition;
-            const ratio = loadedLength / (load.endPosition - load.startPosition);
+            const totalLength = load.endPosition - load.startPosition;
+            const ratio = loadedLength / totalLength;
             const loadForce = (load.maxMagnitude * loadedLength * ratio) / 2;
+            // Centroid of partial triangle
             const loadCentroid =
               load.startPosition + (loadedLength * (2 + ratio)) / (3 * (1 + ratio));
-            shear -= loadForce;
-            moment -= loadForce * (x - loadCentroid);
+            shear += loadForce;
+            moment += loadForce * (x - loadCentroid);
           }
         } else if (load.type === LoadType.MOMENT) {
           if (x >= load.position - this.EPSILON) {
-            moment -= load.magnitude;
+            moment += load.magnitude;
           }
         }
       }
