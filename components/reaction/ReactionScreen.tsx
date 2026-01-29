@@ -19,6 +19,7 @@ import {
   PRESET_LABELS,
 } from '@/utils/structural/reactionCalculator';
 import { ReactionDiagrams } from './ReactionDiagrams';
+import { KatexRender, EngineeringFormulas } from '@/components/math';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const BEAM_VIEW_HEIGHT = 180;
@@ -68,10 +69,12 @@ const BeamVisualization: React.FC = () => {
     return loads.map((load, index) => {
       if (load.type === LoadType.POINT) {
         const x = posToPixel(load.position);
-        const label = `${Math.abs(load.magnitude).toFixed(1)}kN`;
+        const sign = load.magnitude >= 0 ? '+' : '-';
+        const label = `${sign}${Math.abs(load.magnitude).toFixed(1)}kN`;
+        const arrow = load.magnitude >= 0 ? '↓' : '↑';
         return (
           <View key={`load-${index}`} style={[styles.loadPoint, { left: x - 20 }]}>
-            <Text style={styles.loadArrow}>↓</Text>
+            <Text style={styles.loadArrow}>{arrow}</Text>
             <Text style={styles.loadLabelSmall}>{label}</Text>
           </View>
         );
@@ -79,29 +82,34 @@ const BeamVisualization: React.FC = () => {
         const startX = posToPixel(load.startPosition);
         const endX = posToPixel(load.endPosition);
         const width = endX - startX;
-        const label = `${Math.abs(load.magnitude).toFixed(1)}kN/m`;
+        const sign = load.magnitude >= 0 ? '+' : '-';
+        const label = `${sign}${Math.abs(load.magnitude).toFixed(1)}kN/m`;
+        const arrow = load.magnitude >= 0 ? '↓↓↓' : '↑↑↑';
         return (
           <View key={`load-${index}`} style={[styles.loadUDL, { left: startX, width }]}>
             <Text style={styles.loadLabelSmall}>{label}</Text>
             <View style={styles.udlArrows}>
-              <Text style={styles.udlArrow}>↓↓↓</Text>
+              <Text style={styles.udlArrow}>{arrow}</Text>
             </View>
           </View>
         );
       } else if (load.type === LoadType.MOMENT) {
         const x = posToPixel(load.position);
-        const label = `${load.magnitude.toFixed(1)}kNm`;
+        const sign = load.magnitude >= 0 ? '+' : '';
+        const label = `${sign}${load.magnitude.toFixed(1)}kNm`;
+        const symbol = load.magnitude >= 0 ? '↻' : '↺';
         return (
           <View key={`load-${index}`} style={[styles.loadMoment, { left: x - 15 }]}>
             <Text style={styles.loadLabelSmall}>{label}</Text>
-            <Text style={styles.momentSymbol}>↻</Text>
+            <Text style={styles.momentSymbol}>{symbol}</Text>
           </View>
         );
       } else if (load.type === LoadType.TRIANGULAR) {
         const startX = posToPixel(load.startPosition);
         const endX = posToPixel(load.endPosition);
         const width = endX - startX;
-        const label = `△${Math.abs(load.maxMagnitude).toFixed(1)}`;
+        const sign = load.maxMagnitude >= 0 ? '+' : '-';
+        const label = `△${sign}${Math.abs(load.maxMagnitude).toFixed(1)}`;
         return (
           <View key={`load-${index}`} style={[styles.loadTriangular, { left: startX, width }]}>
             <Text style={styles.loadLabelSmall}>{label}</Text>
@@ -693,7 +701,7 @@ const AddLoadModal: React.FC<AddLoadModalProps> = ({
 // ============================================================================
 
 const ResultsScreen: React.FC = () => {
-  const { results, setShowResults } = useReactionStore();
+  const { results, setShowResults, beamLength, supports, loads } = useReactionStore();
 
   if (!results || !results.isValid) {
     return (
@@ -711,6 +719,16 @@ const ResultsScreen: React.FC = () => {
     );
   }
 
+  // Get support type label
+  const getSupportTypeLabel = (idx: number): string => {
+    const support = supports[idx];
+    if (!support) return '';
+    if (support.type === SupportType.FIXED) return 'SABİT';
+    if (support.type === SupportType.PINNED) return 'MAFSALLI';
+    if (support.type === SupportType.ROLLER) return 'DÖNER';
+    return '';
+  };
+
   return (
     <ScrollView style={styles.resultsContainer}>
       <View style={styles.resultsHeader}>
@@ -724,15 +742,29 @@ const ResultsScreen: React.FC = () => {
         </TouchableOpacity>
       </View>
 
+      {/* System Summary */}
+      <View style={styles.resultSection}>
+        <Text style={styles.resultSectionTitle}>SİSTEM ÖZETİ</Text>
+        <View style={styles.resultValues}>
+          <Text style={styles.resultValue}>Kiriş Uzunluğu: L = {beamLength.toFixed(1)} m</Text>
+          <Text style={styles.resultValue}>Mesnet Sayısı: {supports.length}</Text>
+          <Text style={styles.resultValue}>Yük Sayısı: {loads.length}</Text>
+        </View>
+      </View>
+
       {/* Reactions */}
       <View style={styles.resultSection}>
         <Text style={styles.resultSectionTitle}>REAKSİYONLAR</Text>
         {Array.from(results.reactions.entries()).map(([idx, r]) => (
           <View key={idx} style={styles.resultItem}>
-            <Text style={styles.resultLabel}>Mesnet #{Number(idx) + 1}</Text>
+            <Text style={styles.resultLabel}>
+              Mesnet #{Number(idx) + 1} ({getSupportTypeLabel(Number(idx))}) - x = {supports[Number(idx)]?.position.toFixed(1)}m
+            </Text>
             <View style={styles.resultValues}>
               <Text style={styles.resultValue}>R_x = {r.horizontal.toFixed(2)} kN</Text>
-              <Text style={styles.resultValue}>R_y = {r.vertical.toFixed(2)} kN</Text>
+              <Text style={[styles.resultValue, r.vertical >= 0 && styles.resultValuePos]}>
+                R_y = {r.vertical.toFixed(2)} kN {r.vertical >= 0 ? '↑' : '↓'}
+              </Text>
               {Math.abs(r.moment) > 0.01 && (
                 <Text style={styles.resultValue}>M = {r.moment.toFixed(2)} kNm</Text>
               )}
@@ -761,6 +793,47 @@ const ResultsScreen: React.FC = () => {
           )}
         </View>
       </View>
+
+      {/* Engineering Properties */}
+      {results.maxStress && (
+        <View style={styles.resultSection}>
+          <Text style={styles.resultSectionTitle}>MÜHENDİSLİK DEĞERLER</Text>
+          <View style={styles.resultValues}>
+            <View style={styles.formulaRow}>
+              <View style={styles.formulaLabel}>
+                <Text style={styles.resultValue}>Formül:</Text>
+              </View>
+              <KatexRender
+                formula={EngineeringFormulas.stress}
+                color={Colors.engineering.stress}
+                fontSize={Typography.sizes.sm}
+              />
+            </View>
+            <Text style={styles.resultValue}>
+              Max Gerilme: σ_max = {results.maxStress.value.toFixed(2)} {results.maxStress.unit} @ x ={' '}
+              {results.maxStress.position.toFixed(2)} m
+            </Text>
+            {results.deflection && (
+              <>
+                <View style={styles.formulaRow}>
+                  <View style={styles.formulaLabel}>
+                    <Text style={styles.resultValue}>Formül:</Text>
+                  </View>
+                  <KatexRender
+                    formula={EngineeringFormulas.deflectionPoint}
+                    color={Colors.engineering.deflection}
+                    fontSize={Typography.sizes.sm}
+                  />
+                </View>
+                <Text style={styles.resultValue}>
+                  Max Sehimleme: δ_max = {Math.abs(results.deflection.value).toFixed(2)} {results.deflection.unit} @ x ={' '}
+                  {results.deflection.position.toFixed(2)} m
+                </Text>
+              </>
+            )}
+          </View>
+        </View>
+      )}
 
       {/* Diagrams */}
       <ReactionDiagrams results={results} />
@@ -1139,6 +1212,17 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.xs,
     color: Colors.gray[300],
     marginBottom: 2,
+  },
+  resultValuePos: {
+    color: Colors.status.success,
+  },
+  formulaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  formulaLabel: {
+    marginRight: Spacing.sm,
   },
 
   // Error

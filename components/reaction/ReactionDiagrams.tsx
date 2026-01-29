@@ -113,16 +113,18 @@ export const ReactionDiagrams: React.FC<ReactionDiagramsProps> = ({ results }) =
             <Path path={shearArea} color="rgba(255, 176, 0, 0.2)" />
 
             {/* Shear line */}
-            <Path path={shearPath} color={Colors.amber.primary} style="stroke" strokeWidth={2} />
+            <Path path={shearPath} color={Colors.engineering.shear} style="stroke" strokeWidth={2} />
           </Canvas>
 
           {/* Y-axis labels */}
           <View style={styles.yAxisLabels}>
             <Text style={styles.axisLabel}>
-              {shearMax > 0 ? `+${shearMax.toFixed(1)}` : '0'}
+              {`+${shearMax.toFixed(1)}`}
             </Text>
             <Text style={styles.axisLabel}>0</Text>
-            <Text style={styles.axisLabel}>{(-shearMax).toFixed(1)}</Text>
+            <Text style={styles.axisLabel}>
+              {(-shearMax).toFixed(1)}
+            </Text>
           </View>
         </View>
         <Text style={styles.diagramNote}>
@@ -147,7 +149,7 @@ export const ReactionDiagrams: React.FC<ReactionDiagramsProps> = ({ results }) =
             {/* Moment line */}
             <Path
               path={momentPath}
-              color={Colors.status.info}
+              color={Colors.engineering.moment}
               style="stroke"
               strokeWidth={2}
             />
@@ -156,11 +158,11 @@ export const ReactionDiagrams: React.FC<ReactionDiagramsProps> = ({ results }) =
           {/* Y-axis labels */}
           <View style={styles.yAxisLabels}>
             <Text style={styles.axisLabel}>
-              {momentMax > 0 ? `+${momentMax.toFixed(1)}` : '0'}
+              {`+${momentMax.toFixed(1)}`}
             </Text>
             <Text style={styles.axisLabel}>0</Text>
             <Text style={styles.axisLabel}>
-              {-Math.max(Math.abs(results.minMoment.value), momentMax).toFixed(1)}
+              {(-momentMax).toFixed(1)}
             </Text>
           </View>
         </View>
@@ -180,7 +182,7 @@ export const ReactionDiagrams: React.FC<ReactionDiagramsProps> = ({ results }) =
               key={point.x}
               style={[
                 styles.tickMark,
-                { left: ((point.x / beamLength) * (CHART_WIDTH - 2 * PADDING) + PADDING) / 2 },
+                { left: (point.x / beamLength) * (CHART_WIDTH - 2 * PADDING) + PADDING },
               ]}
             >
               <Text style={styles.tickLabel}>{point.x.toFixed(1)}</Text>
@@ -201,9 +203,11 @@ const styles = StyleSheet.create({
   diagramTitle: {
     fontFamily: Typography.family.mono,
     fontSize: Typography.sizes.sm,
-    color: Colors.amber.secondary,
+    color: Colors.engineering.shear,
     fontWeight: 'bold',
     marginBottom: Spacing.sm,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   chartContainer: {
     position: 'relative',
@@ -249,8 +253,9 @@ const styles = StyleSheet.create({
   },
   tickMark: {
     position: 'absolute',
-    bottom: -20,
+    bottom: 0,
     alignItems: 'center',
+    transform: [{ translateX: -15 }],
   },
   tickLabel: {
     fontFamily: Typography.family.mono,

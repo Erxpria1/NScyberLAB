@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TextInput, ScrollView, Dimensions, TouchableOpa
 import { useTerminalStore, type ActiveScreen } from '@/store/useTerminalStore';
 import { ControlTower } from './ControlTower';
 import { ReactionScreen } from '@/components/reaction';
+import { KatexRender } from '@/components/math';
 import { Colors, Typography, Spacing } from '@/utils/theme';
 import { StatusBar } from 'expo-status-bar';
 import { Canvas, Rect } from '@shopify/react-native-skia';
@@ -182,7 +183,7 @@ export const TerminalScreen: React.FC = () => {
         addCommand(text, '>> PDF LIBRARY ACCESS\n>> Available documents: 0');
         break;
       case 'CALC':
-        addCommand(text, '>> CALCULATOR MODE\n>> Type expression or "calc help"');
+        addCommand(text, '>> CALCULATOR MODE\n>> Type expression (e.g., "calc 2+2" or "calc x^2")\n>> LaTeX formulas supported');
         break;
       case '3D':
         addCommand(text, '>> 3D RENDERING ENGINE\n>> WebGL context: READY');
@@ -221,7 +222,22 @@ export const TerminalScreen: React.FC = () => {
         );
         break;
       default:
-        if (text) {
+        // Handle calc expressions: calc <expression>
+        if (text.toLowerCase().startsWith('calc ')) {
+          const expression = text.substring(5).trim();
+          try {
+            const { evaluate, format } = require('mathjs');
+            const result = evaluate(expression);
+            const latex = format(result, { latex: true, precision: 4 });
+            addCommand(text,
+              `>> Expression: ${expression}\n` +
+              `>> Result: ${result}\n` +
+              `>> LaTeX: ${latex}`
+            );
+          } catch (err) {
+            addCommand(text, `>> Calculation error: ${(err as Error).message}\n>> Check expression syntax`);
+          }
+        } else if (text) {
           addCommand(text, `>> Unknown command: ${text}\n>> Type HELP for available commands`);
         }
     }
