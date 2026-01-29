@@ -14,10 +14,8 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.nscyber.lab",
-      "statusBar": {
-        "style": "light",
-        "hidden": false,
-        "translucent": true
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -31,6 +29,12 @@
     },
     "plugins": [
       "expo-router"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "80d0e9a3-0c55-43fa-8836-f6ddaf12b86c"
+      }
+    }
   }
 }

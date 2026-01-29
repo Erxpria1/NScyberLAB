@@ -16,10 +16,11 @@ import {
   LoadType,
   type Load,
   type Support,
-  PRESET_LABELS,
 } from '@/utils/structural/reactionCalculator';
 import { ReactionDiagrams } from './ReactionDiagrams';
+import { BeamTypeSelector } from './BeamTypeSelector';
 import { KatexRender, EngineeringFormulas } from '@/components/math';
+import { parseNumberSafe } from '@/utils/numberUtils';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const BEAM_VIEW_HEIGHT = 180;
@@ -146,39 +147,6 @@ const BeamVisualization: React.FC = () => {
 };
 
 // ============================================================================
-// PRESET SELECTOR
-// ============================================================================
-
-const PresetSelector: React.FC = () => {
-  const { loadPreset, selectedPreset } = useReactionStore();
-
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>HAZIR SİSTEMLER</Text>
-      <View style={styles.presetGrid}>
-        {Object.entries(PRESET_LABELS).map(([key, label]) => (
-          <TouchableOpacity
-            key={key}
-            style={[styles.presetButton, selectedPreset === key && styles.presetButtonActive]}
-            onPress={() => loadPreset(key)}
-            activeOpacity={0.7}
-          >
-            <Text
-              style={[
-                styles.presetButtonText,
-                selectedPreset === key && styles.presetButtonTextActive,
-              ]}
-            >
-              {label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </View>
-  );
-};
-
-// ============================================================================
 // BEAM CONFIGURATION
 // ============================================================================
 
@@ -193,8 +161,8 @@ const BeamConfig: React.FC = () => {
 
   const handleLengthChange = (text: string) => {
     setLengthInput(text);
-    const val = parseFloat(text);
-    if (!isNaN(val) && val > 0) {
+    const val = parseNumberSafe(text);
+    if (val > 0) {
       setBeamLength(val);
     }
   };
@@ -233,8 +201,8 @@ const SupportManager: React.FC = () => {
   }, [showAddModal]);
 
   const handleAddSupport = () => {
-    const pos = parseFloat(newSupportPos);
-    if (!isNaN(pos) && pos >= 0 && pos <= beamLength) {
+    const pos = parseNumberSafe(newSupportPos);
+    if (pos >= 0 && pos <= beamLength) {
       addSupport({ type: newSupportType, position: pos });
       setShowAddModal(false);
     }
@@ -470,14 +438,14 @@ const AddLoadModal: React.FC<AddLoadModalProps> = ({
   }, [visible, beamLength]);
 
   const handleAdd = () => {
-    const posVal = parseFloat(pos);
-    const magVal = parseFloat(mag);
-    const startVal = parseFloat(startPos);
-    const endVal = parseFloat(endPos);
+    const posVal = parseNumberSafe(pos);
+    const magVal = parseNumberSafe(mag);
+    const startVal = parseNumberSafe(startPos);
+    const endVal = parseNumberSafe(endPos);
 
     switch (loadType) {
       case LoadType.POINT:
-        if (!isNaN(posVal) && posVal >= 0 && posVal <= beamLength && !isNaN(magVal)) {
+        if (posVal >= 0 && posVal <= beamLength) {
           addLoad({
             type: LoadType.POINT,
             position: posVal,
@@ -487,7 +455,7 @@ const AddLoadModal: React.FC<AddLoadModalProps> = ({
         }
         break;
       case LoadType.UDL:
-        if (!isNaN(startVal) && startVal >= 0 && !isNaN(endVal) && endVal <= beamLength && startVal < endVal && !isNaN(magVal)) {
+        if (startVal >= 0 && endVal <= beamLength && startVal < endVal) {
           addLoad({
             type: LoadType.UDL,
             startPosition: startVal,
@@ -498,7 +466,7 @@ const AddLoadModal: React.FC<AddLoadModalProps> = ({
         }
         break;
       case LoadType.MOMENT:
-        if (!isNaN(posVal) && posVal >= 0 && posVal <= beamLength && !isNaN(magVal)) {
+        if (posVal >= 0 && posVal <= beamLength) {
           addLoad({
             type: LoadType.MOMENT,
             position: posVal,
@@ -508,7 +476,7 @@ const AddLoadModal: React.FC<AddLoadModalProps> = ({
         }
         break;
       case LoadType.TRIANGULAR:
-        if (!isNaN(startVal) && startVal >= 0 && !isNaN(endVal) && endVal <= beamLength && startVal < endVal && !isNaN(magVal)) {
+        if (startVal >= 0 && endVal <= beamLength && startVal < endVal) {
           addLoad({
             type: LoadType.TRIANGULAR,
             startPosition: startVal,
@@ -855,7 +823,7 @@ export const ReactionScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView}>
-        <PresetSelector />
+        <BeamTypeSelector />
         <BeamVisualization />
         <BeamConfig />
         <SupportManager />
@@ -896,36 +864,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontFamily: Typography.family.mono,
     fontSize: Typography.sizes.sm,
-    color: Colors.amber.secondary,
-    fontWeight: 'bold',
-  },
-
-  // Preset Grid
-  presetGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginLeft: Spacing.xs,
-  },
-  presetButton: {
-    width: '48%',
-    marginTop: Spacing.xs,
-    marginRight: Spacing.sm,
-    padding: Spacing.sm,
-    backgroundColor: Colors.gray[100],
-    borderWidth: 1,
-    borderColor: Colors.amber.dim,
-  },
-  presetButtonActive: {
-    backgroundColor: Colors.amber.bg,
-    borderColor: Colors.amber.secondary,
-  },
-  presetButtonText: {
-    fontFamily: Typography.family.mono,
-    fontSize: Typography.sizes.xs,
-    color: Colors.amber.primary,
-    textAlign: 'center',
-  },
-  presetButtonTextActive: {
     color: Colors.amber.secondary,
     fontWeight: 'bold',
   },

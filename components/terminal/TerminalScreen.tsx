@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, ScrollView, Dimensions, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useTerminalStore, type ActiveScreen } from '@/store/useTerminalStore';
 import { ControlTower } from './ControlTower';
 import { ReactionScreen } from '@/components/reaction';
+import { SupportScreen } from '@/components/support';
 import { Colors, Typography, Spacing } from '@/utils/theme';
 import { StatusBar } from 'expo-status-bar';
 import { Canvas, Rect } from '@shopify/react-native-skia';
@@ -127,6 +129,7 @@ const BootSequence: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
 
 // Main Terminal Screen
 export const TerminalScreen: React.FC = () => {
+  const router = useRouter();
   const {
     commandHistory,
     currentInput,
@@ -179,7 +182,9 @@ export const TerminalScreen: React.FC = () => {
         addCommand(text, '>> TRUSS SOLVER READY\n>> Use node/add and member/add commands');
         break;
       case 'PDF':
-        addCommand(text, '>> PDF LIBRARY ACCESS\n>> Available documents: 0');
+      case 'LIBRARY':
+        addCommand(text, '>> PDF LIBRARY ACCESS\n>> Opening library...');
+        router.push('/library');
         break;
       case 'CALC':
         addCommand(text, '>> CALCULATOR MODE\n>> Type expression (e.g., "calc 2+2" or "calc x^2")\n>> LaTeX formulas supported');
@@ -188,7 +193,8 @@ export const TerminalScreen: React.FC = () => {
         addCommand(text, '>> 3D RENDERING ENGINE\n>> WebGL context: READY');
         break;
       case 'SUPPORT':
-        addCommand(text, '>> SUPPORT MODULE\n>> Documentation and tutorials coming soon');
+        addCommand(text, '>> SUPPORT MODULE INITIALIZED\n>> Opening documentation...');
+        setActiveScreen('support');
         break;
       case 'REACTION':
         addCommand(text, '>> REACTION FORCES MODULE\n>> Opening simulation interface...');
@@ -284,6 +290,16 @@ export const TerminalScreen: React.FC = () => {
           </View>
           <ReactionScreen />
         </View>
+      </>
+    );
+  }
+
+  // Show SupportScreen when active
+  if (activeScreen === 'support') {
+    return (
+      <>
+        <StatusBar style="light" />
+        <SupportScreen onReturn={() => setActiveScreen('terminal')} />
       </>
     );
   }

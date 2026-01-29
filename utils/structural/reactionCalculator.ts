@@ -90,6 +90,81 @@ export interface AnalysisResults extends ReactionResults {
 }
 
 // ============================================================================
+// BEAM TYPE SYSTEM
+// ============================================================================
+
+export interface BeamType {
+  id: string;
+  name: string; // Turkish name
+  icon: string; // Icon character
+  description: string; // Short description
+  defaultConfig: (length?: number) => BeamConfig;
+}
+
+export const BEAM_TYPES: BeamType[] = [
+  {
+    id: 'simple',
+    name: 'Basit Kiriş',
+    icon: '⊣⊢',
+    description: 'İki ucu mesnetli',
+    defaultConfig: (length = 6) => ({
+      length,
+      supports: [
+        { type: SupportType.PINNED, position: 0 },
+        { type: SupportType.ROLLER, position: length },
+      ],
+      loads: [],
+    }),
+  },
+  {
+    id: 'cantilever',
+    name: 'Konsol Kiriş',
+    icon: '▬╟',
+    description: 'Bir ucu sabit',
+    defaultConfig: (length = 4) => ({
+      length,
+      supports: [
+        { type: SupportType.FIXED, position: 0 },
+      ],
+      loads: [],
+    }),
+  },
+  {
+    id: 'continuous',
+    name: 'Sürekli Kiriş',
+    icon: '⊣⊢⊢',
+    description: '3 mesnet, 2 açıklık',
+    defaultConfig: (length = 10) => ({
+      length,
+      supports: [
+        { type: SupportType.PINNED, position: 0 },
+        { type: SupportType.PINNED, position: length / 2 },
+        { type: SupportType.ROLLER, position: length },
+      ],
+      loads: [],
+    }),
+  },
+  {
+    id: 'fixed-fixed',
+    name: 'Sabit-Sabit',
+    icon: '▬▬',
+    description: 'İki ucu da sabit',
+    defaultConfig: (length = 8) => ({
+      length,
+      supports: [
+        { type: SupportType.FIXED, position: 0 },
+        { type: SupportType.FIXED, position: length },
+      ],
+      loads: [],
+    }),
+  },
+];
+
+export function getBeamTypeById(id: string): BeamType | undefined {
+  return BEAM_TYPES.find(bt => bt.id === id);
+}
+
+// ============================================================================
 // PRESET SYSTEMS
 // ============================================================================
 

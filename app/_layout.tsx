@@ -8,28 +8,35 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <Stack
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: '#000' },
-        orientation: 'portrait',
-      }}
-    >
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: '#000' },
+          orientation: 'portrait',
+        }}
+      >
       <Stack.Screen name="index" />
       <Stack.Screen
-        name="beam"
+        name="library"
         options={{
-          presentation: 'modal',
+          presentation: 'card',
+          animation: 'slide_from_right',
+        }}
+      />
+      <Stack.Screen
+        name="pdf-reader"
+        options={{
+          presentation: 'card',
           animation: 'fade',
         }}
       />
       <Stack.Screen
-        name="truss"
+        name="note-editor"
         options={{
           presentation: 'modal',
-          animation: 'fade',
+          animation: 'slide_from_bottom',
         }}
       />
     </Stack>
-    </SafeAreaProvider>
-  );
+  </SafeAreaProvider>
+);
 }
