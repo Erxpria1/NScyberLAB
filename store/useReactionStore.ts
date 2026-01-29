@@ -10,7 +10,6 @@ import type {
 import {
   calculateReactions,
   PRESET_SYSTEMS,
-  PRESET_LABELS,
   getAllPresets,
 } from '@/utils/structural/reactionCalculator';
 
@@ -40,11 +39,6 @@ interface ReactionState {
   loadPreset: (presetKey: string) => void;
   reset: () => void;
   setShowResults: (show: boolean) => void;
-
-  // Getters
-  getBeamLength: () => number;
-  getSupports: () => Support[];
-  getLoads: () => Load[];
 }
 
 const DEFAULT_SUPPORTS: Support[] = [
@@ -143,11 +137,6 @@ export const useReactionStore = create<ReactionState>((set, get) => ({
     }),
 
   setShowResults: (show) => set({ showResults: show }),
-
-  // Getters
-  getBeamLength: () => get().beamLength,
-  getSupports: () => get().supports,
-  getLoads: () => get().loads,
 }));
 
 export const getPresetOptions = () => getAllPresets();

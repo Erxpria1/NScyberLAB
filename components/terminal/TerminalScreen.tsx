@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, TextInput, ScrollView, Dimensions, TouchableOpa
 import { useTerminalStore, type ActiveScreen } from '@/store/useTerminalStore';
 import { ControlTower } from './ControlTower';
 import { ReactionScreen } from '@/components/reaction';
-import { KatexRender } from '@/components/math';
 import { Colors, Typography, Spacing } from '@/utils/theme';
 import { StatusBar } from 'expo-status-bar';
 import { Canvas, Rect } from '@shopify/react-native-skia';
