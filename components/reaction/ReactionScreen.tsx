@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -60,6 +60,11 @@ const BeamConfig: React.FC = () => {
   const { beamLength, setBeamLength } = useReactionStore();
   const [lengthInput, setLengthInput] = useState(beamLength.toString());
 
+  // Sync local state with store when preset changes
+  useEffect(() => {
+    setLengthInput(beamLength.toString());
+  }, [beamLength]);
+
   const handleLengthChange = (text: string) => {
     setLengthInput(text);
     const val = parseFloat(text);
@@ -88,14 +93,22 @@ const BeamConfig: React.FC = () => {
 // ============================================================================
 
 const SupportManager: React.FC = () => {
-  const { supports, addSupport, removeSupport } = useReactionStore();
+  const { supports, addSupport, removeSupport, beamLength } = useReactionStore();
   const [showAddModal, setShowAddModal] = useState(false);
   const [newSupportType, setNewSupportType] = useState<SupportType>(SupportType.PINNED);
   const [newSupportPos, setNewSupportPos] = useState('0');
 
+  // Reset input when modal opens
+  useEffect(() => {
+    if (showAddModal) {
+      setNewSupportPos('0');
+      setNewSupportType(SupportType.PINNED);
+    }
+  }, [showAddModal]);
+
   const handleAddSupport = () => {
     const pos = parseFloat(newSupportPos);
-    if (!isNaN(pos) && pos >= 0) {
+    if (!isNaN(pos) && pos >= 0 && pos <= beamLength) {
       addSupport({ type: newSupportType, position: pos });
       setShowAddModal(false);
     }
@@ -121,7 +134,7 @@ const SupportManager: React.FC = () => {
               <Text style={styles.itemLabel}>
                 {support.type === SupportType.FIXED && 'SABİT'}
                 {support.type === SupportType.PINNED && 'MAFSALLI'}
-                {support.type === SupportType.ROLLER && 'DÖNEBİLİR'}
+                {support.type === SupportType.ROLLER && 'DÖNER'}
               </Text>
               <Text style={styles.itemSublabel}>x = {support.position.toFixed(2)} m</Text>
             </View>
@@ -141,8 +154,16 @@ const SupportManager: React.FC = () => {
 
       {/* Add Support Modal */}
       <Modal visible={showAddModal} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowAddModal(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalContent}
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+          >
             <Text style={styles.modalTitle}>MESNET EKLE</Text>
 
             <Text style={styles.modalLabel}>Tip:</Text>
@@ -150,7 +171,7 @@ const SupportManager: React.FC = () => {
               {[
                 { type: SupportType.FIXED, label: 'Sabit' },
                 { type: SupportType.PINNED, label: 'Mafsallı' },
-                { type: SupportType.ROLLER, label: 'Döenebilir' },
+                { type: SupportType.ROLLER, label: 'Döner' },
               ].map((opt) => (
                 <TouchableOpacity
                   key={opt.type}
@@ -200,8 +221,8 @@ const SupportManager: React.FC = () => {
                 <Text style={styles.modalButtonText}>EKLE</Text>
               </TouchableOpacity>
             </View>
-          </View>
-        </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
       </Modal>
     </View>
   );
@@ -212,9 +233,16 @@ const SupportManager: React.FC = () => {
 // ============================================================================
 
 const LoadManager: React.FC = () => {
-  const { loads, removeLoad } = useReactionStore();
+  const { loads, removeLoad, beamLength } = useReactionStore();
   const [showAddModal, setShowAddModal] = useState(false);
   const [newLoadType, setNewLoadType] = useState<LoadType>(LoadType.POINT);
+
+  // Reset load type when modal opens
+  useEffect(() => {
+    if (!showAddModal) {
+      setNewLoadType(LoadType.POINT);
+    }
+  }, [showAddModal]);
 
   const loadTypeLabels: Record<LoadType, string> = {
     [LoadType.POINT]: 'NOKTA YÜKÜ',
@@ -297,7 +325,7 @@ const AddLoadModal: React.FC<AddLoadModalProps> = ({
   onLoadTypeChange,
   onClose,
 }) => {
-  const { addLoad } = useReactionStore();
+  const { addLoad, beamLength } = useReactionStore();
 
   // Input states - reset when modal opens
   const [pos, setPos] = useState('3');
@@ -305,46 +333,80 @@ const AddLoadModal: React.FC<AddLoadModalProps> = ({
   const [startPos, setStartPos] = useState('0');
   const [endPos, setEndPos] = useState('6');
 
+  // Reset inputs when modal opens
+  useEffect(() => {
+    if (visible) {
+      setPos('3');
+      setMag('10');
+      setStartPos('0');
+      setEndPos(beamLength.toString());
+    }
+  }, [visible, beamLength]);
+
   const handleAdd = () => {
+    const posVal = parseFloat(pos);
+    const magVal = parseFloat(mag);
+    const startVal = parseFloat(startPos);
+    const endVal = parseFloat(endPos);
+
     switch (loadType) {
       case LoadType.POINT:
-        addLoad({
-          type: LoadType.POINT,
-          position: parseFloat(pos) || 3,
-          magnitude: -parseFloat(mag) || -10, // negative = downward
-        });
+        if (!isNaN(posVal) && posVal >= 0 && posVal <= beamLength && !isNaN(magVal)) {
+          addLoad({
+            type: LoadType.POINT,
+            position: posVal,
+            magnitude: -Math.abs(magVal), // negative = downward
+          });
+          onClose();
+        }
         break;
       case LoadType.UDL:
-        addLoad({
-          type: LoadType.UDL,
-          startPosition: parseFloat(startPos) || 0,
-          endPosition: parseFloat(endPos) || 6,
-          magnitude: -parseFloat(mag) || -5,
-        });
+        if (!isNaN(startVal) && startVal >= 0 && !isNaN(endVal) && endVal <= beamLength && startVal < endVal && !isNaN(magVal)) {
+          addLoad({
+            type: LoadType.UDL,
+            startPosition: startVal,
+            endPosition: endVal,
+            magnitude: -Math.abs(magVal),
+          });
+          onClose();
+        }
         break;
       case LoadType.MOMENT:
-        addLoad({
-          type: LoadType.MOMENT,
-          position: parseFloat(pos) || 3,
-          magnitude: parseFloat(mag) || 10,
-        });
+        if (!isNaN(posVal) && posVal >= 0 && posVal <= beamLength && !isNaN(magVal)) {
+          addLoad({
+            type: LoadType.MOMENT,
+            position: posVal,
+            magnitude: magVal,
+          });
+          onClose();
+        }
         break;
       case LoadType.TRIANGULAR:
-        addLoad({
-          type: LoadType.TRIANGULAR,
-          startPosition: parseFloat(startPos) || 0,
-          endPosition: parseFloat(endPos) || 6,
-          maxMagnitude: -parseFloat(mag) || -10,
-        });
+        if (!isNaN(startVal) && startVal >= 0 && !isNaN(endVal) && endVal <= beamLength && startVal < endVal && !isNaN(magVal)) {
+          addLoad({
+            type: LoadType.TRIANGULAR,
+            startPosition: startVal,
+            endPosition: endVal,
+            maxMagnitude: -Math.abs(magVal),
+          });
+          onClose();
+        }
         break;
     }
-    onClose();
   };
 
   return (
     <Modal visible={visible} transparent animationType="fade">
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
+      <TouchableOpacity
+        style={styles.modalOverlay}
+        activeOpacity={1}
+        onPress={onClose}
+      >
+        <TouchableOpacity
+          style={styles.modalContent}
+          activeOpacity={1}
+          onPress={(e) => e.stopPropagation()}
+        >
           <Text style={styles.modalTitle}>YÜK EKLE</Text>
 
           {/* Load Type Selector */}
@@ -502,8 +564,8 @@ const AddLoadModal: React.FC<AddLoadModalProps> = ({
               <Text style={styles.modalButtonText}>EKLE</Text>
             </TouchableOpacity>
           </View>
-        </View>
-      </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
     </Modal>
   );
 };
@@ -549,7 +611,7 @@ const ResultsScreen: React.FC = () => {
         <Text style={styles.resultSectionTitle}>REAKSİYONLAR</Text>
         {Array.from(results.reactions.entries()).map(([idx, r]) => (
           <View key={idx} style={styles.resultItem}>
-            <Text style={styles.resultLabel}>Mesnet #{parseInt(idx) + 1}</Text>
+            <Text style={styles.resultLabel}>Mesnet #{Number(idx) + 1}</Text>
             <View style={styles.resultValues}>
               <Text style={styles.resultValue}>R_x = {r.horizontal.toFixed(2)} kN</Text>
               <Text style={styles.resultValue}>R_y = {r.vertical.toFixed(2)} kN</Text>
@@ -727,8 +789,8 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   addButton: {
-    width: 32,
-    height: 32,
+    width: 44,
+    height: 44,
     backgroundColor: Colors.status.success,
     justifyContent: 'center',
     alignItems: 'center',
@@ -740,8 +802,8 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   removeButton: {
-    width: 28,
-    height: 28,
+    width: 44,
+    height: 44,
     backgroundColor: Colors.status.error,
     justifyContent: 'center',
     alignItems: 'center',
@@ -788,12 +850,13 @@ const styles = StyleSheet.create({
     fontFamily: Typography.family.mono,
     fontSize: Typography.sizes.sm,
     color: Colors.amber.primary,
-    backgroundColor: Colors.gray[100],
+    backgroundColor: Colors.black,
     borderWidth: 1,
     borderColor: Colors.amber.dim,
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.sm,
     marginTop: Spacing.xs,
+    minHeight: 44,
   },
   modalOptions: {
     flexDirection: 'row',
@@ -802,10 +865,12 @@ const styles = StyleSheet.create({
   modalOption: {
     flex: 1,
     padding: Spacing.sm,
-    backgroundColor: Colors.gray[100],
+    backgroundColor: Colors.black,
     borderWidth: 1,
     borderColor: Colors.amber.dim,
     marginRight: Spacing.xs,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   modalOptionActive: {
     backgroundColor: Colors.amber.bg,
@@ -856,10 +921,12 @@ const styles = StyleSheet.create({
   loadTypeButton: {
     flex: 1,
     padding: Spacing.sm,
-    backgroundColor: Colors.gray[100],
+    backgroundColor: Colors.black,
     borderWidth: 1,
     borderColor: Colors.amber.dim,
     marginRight: Spacing.xs,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   loadTypeButtonActive: {
     backgroundColor: Colors.amber.bg,
@@ -913,8 +980,8 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   closeResultsButton: {
-    width: 32,
-    height: 32,
+    width: 44,
+    height: 44,
     backgroundColor: Colors.status.error,
     justifyContent: 'center',
     alignItems: 'center',
