@@ -110,13 +110,19 @@ export const useReactionStore = create<ReactionState>((set, get) => ({
   loadPreset: (presetKey) => {
     const preset = PRESET_SYSTEMS[presetKey];
     if (preset) {
+      const config: BeamConfig = {
+        length: preset.length,
+        supports: preset.supports,
+        loads: preset.loads,
+      };
+      const results = calculateReactions(config);
       set({
         beamLength: preset.length,
         supports: preset.supports,
         loads: preset.loads,
         selectedPreset: presetKey,
-        results: null,
-        showResults: false,
+        results,
+        showResults: true,
       });
     }
   },

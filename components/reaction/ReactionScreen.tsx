@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   TextInput,
   Modal,
+  Dimensions,
 } from 'react-native';
 import { useReactionStore } from '@/store/useReactionStore';
 import { Colors, Typography, Spacing } from '@/utils/theme';
@@ -18,6 +19,123 @@ import {
   PRESET_LABELS,
 } from '@/utils/structural/reactionCalculator';
 import { ReactionDiagrams } from './ReactionDiagrams';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const BEAM_VIEW_HEIGHT = 180;
+const BEAM_PADDING = 40;
+
+// ============================================================================
+// BEAM VISUALIZATION
+// ============================================================================
+
+const BeamVisualization: React.FC = () => {
+  const { beamLength, supports, loads } = useReactionStore();
+
+  const scale = (SCREEN_WIDTH - 2 * BEAM_PADDING) / Math.max(beamLength, 1);
+
+  // Render support symbol
+  const renderSupport = (support: Support, index: number) => {
+    const x = BEAM_PADDING + support.position * scale;
+    const y = BEAM_VIEW_HEIGHT / 2;
+
+    return (
+      <View key={`support-${index}`} style={[styles.supportSymbol, { left: x - 15 }]}>
+        {support.type === SupportType.PINNED && (
+          <View style={styles.pinnedSupport}>
+            <Text style={styles.supportText}>▲</Text>
+          </View>
+        )}
+        {support.type === SupportType.ROLLER && (
+          <View style={styles.rollerSupport}>
+            <Text style={styles.supportText}>●</Text>
+          </View>
+        )}
+        {support.type === SupportType.FIXED && (
+          <View style={styles.fixedSupport}>
+            <Text style={styles.supportText}>■</Text>
+          </View>
+        )}
+        <Text style={styles.supportLabel}>{index + 1}</Text>
+      </View>
+    );
+  };
+
+  // Render load symbols
+  const renderLoads = () => {
+    return loads.map((load, index) => {
+      let x = 0;
+      let width = 0;
+      let label = '';
+
+      if (load.type === LoadType.POINT) {
+        x = load.position * scale;
+        width = 2;
+        label = `${Math.abs(load.magnitude).toFixed(1)}kN`;
+        return (
+          <View key={`load-${index}`} style={[styles.loadPoint, { left: BEAM_PADDING + x - 1 }]}>
+            <Text style={styles.loadArrow}>↓</Text>
+            <Text style={styles.loadLabelSmall}>{label}</Text>
+          </View>
+        );
+      } else if (load.type === LoadType.UDL) {
+        const startX = load.startPosition * scale;
+        const endX = load.endPosition * scale;
+        label = `${Math.abs(load.magnitude).toFixed(1)}kN/m`;
+        return (
+          <View key={`load-${index}`} style={[styles.loadUDL, { left: BEAM_PADDING + startX, width: endX - startX }]}>
+            <Text style={styles.loadLabelSmall}>{label}</Text>
+            <View style={styles.udlArrows}>
+              <Text style={styles.udlArrow}>↓↓↓</Text>
+            </View>
+          </View>
+        );
+      } else if (load.type === LoadType.MOMENT) {
+        x = load.position * scale;
+        label = `${load.magnitude.toFixed(1)}kNm`;
+        return (
+          <View key={`load-${index}`} style={[styles.loadMoment, { left: BEAM_PADDING + x - 15 }]}>
+            <Text style={styles.loadLabelSmall}>{label}</Text>
+            <Text style={styles.momentSymbol}>↻</Text>
+          </View>
+        );
+      } else if (load.type === LoadType.TRIANGULAR) {
+        const startX = load.startPosition * scale;
+        const endX = load.endPosition * scale;
+        label = `△${Math.abs(load.maxMagnitude).toFixed(1)}`;
+        return (
+          <View key={`load-${index}`} style={[styles.loadTriangular, { left: BEAM_PADDING + startX, width: endX - startX }]}>
+            <Text style={styles.loadLabelSmall}>{label}</Text>
+          </View>
+        );
+      }
+      return null;
+    });
+  };
+
+  return (
+    <View style={styles.beamVisualization}>
+      <Text style={styles.sectionTitle}>KİRİŞ GÖRSELİ</Text>
+      <View style={styles.beamCanvas}>
+        {/* Beam line */}
+        <View style={styles.beamLine} />
+
+        {/* Dimension line */}
+        <View style={styles.dimensionLine}>
+          <View style={styles.dimensionTickLeft} />
+          <View style={styles.dimensionBar} />
+          <View style={styles.dimensionTickRight} />
+          <Text style={styles.dimensionText}>{beamLength.toFixed(1)}m</Text>
+        </View>
+
+        {/* Supports */}
+        {supports.map((s, i) => renderSupport(s, i))}
+
+        {/* Loads */}
+        {renderLoads()}
+      </View>
+    </View>
+  );
+};
 
 // ============================================================================
 // PRESET SELECTOR
@@ -665,6 +783,7 @@ export const ReactionScreen: React.FC = () => {
     <View style={styles.container}>
       <ScrollView style={styles.scrollView}>
         <PresetSelector />
+        <BeamVisualization />
         <BeamConfig />
         <SupportManager />
         <LoadManager />
@@ -1053,5 +1172,157 @@ const styles = StyleSheet.create({
     fontFamily: Typography.family.mono,
     fontSize: Typography.sizes.sm,
     color: Colors.amber.primary,
+  },
+
+  // Beam Visualization
+  beamVisualization: {
+    padding: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.amber.dim,
+    backgroundColor: Colors.gray[100],
+  },
+  beamCanvas: {
+    height: BEAM_VIEW_HEIGHT,
+    position: 'relative',
+    marginTop: Spacing.sm,
+  },
+  beamLine: {
+    position: 'absolute',
+    top: BEAM_VIEW_HEIGHT / 2 - 2,
+    left: BEAM_PADDING,
+    right: BEAM_PADDING,
+    height: 4,
+    backgroundColor: Colors.amber.primary,
+  },
+  dimensionLine: {
+    position: 'absolute',
+    bottom: 20,
+    left: BEAM_PADDING,
+    right: BEAM_PADDING,
+    height: 20,
+  },
+  dimensionBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: Colors.gray[300],
+  },
+  dimensionTickLeft: {
+    position: 'absolute',
+    left: 0,
+    bottom: 0,
+    width: 1,
+    height: 10,
+    backgroundColor: Colors.gray[300],
+  },
+  dimensionTickRight: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    width: 1,
+    height: 10,
+    backgroundColor: Colors.gray[300],
+  },
+  dimensionText: {
+    position: 'absolute',
+    bottom: 5,
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+    fontFamily: Typography.family.mono,
+    fontSize: Typography.sizes.xs,
+    color: Colors.gray[300],
+  },
+  supportSymbol: {
+    position: 'absolute',
+    top: BEAM_VIEW_HEIGHT / 2 + 5,
+    alignItems: 'center',
+    width: 30,
+  },
+  pinnedSupport: {
+    width: 30,
+    height: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  rollerSupport: {
+    width: 30,
+    height: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fixedSupport: {
+    width: 30,
+    height: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  supportText: {
+    fontSize: 24,
+    color: Colors.amber.secondary,
+  },
+  supportLabel: {
+    position: 'absolute',
+    bottom: -15,
+    fontFamily: Typography.family.mono,
+    fontSize: Typography.sizes.xs - 2,
+    color: Colors.gray[300],
+  },
+  loadPoint: {
+    position: 'absolute',
+    top: BEAM_VIEW_HEIGHT / 2 - 40,
+    alignItems: 'center',
+    width: 40,
+  },
+  loadArrow: {
+    fontSize: 20,
+    color: Colors.status.error,
+  },
+  loadLabelSmall: {
+    fontFamily: Typography.family.mono,
+    fontSize: Typography.sizes.xs - 3,
+    color: Colors.gray[300],
+  },
+  loadUDL: {
+    position: 'absolute',
+    top: BEAM_VIEW_HEIGHT / 2 - 35,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 176, 0, 0.1)',
+    borderTopWidth: 1,
+    borderTopColor: Colors.status.error,
+  },
+  udlArrows: {
+    marginTop: 2,
+  },
+  udlArrow: {
+    fontSize: 10,
+    color: Colors.status.error,
+    letterSpacing: 2,
+  },
+  loadMoment: {
+    position: 'absolute',
+    top: BEAM_VIEW_HEIGHT / 2 - 35,
+    alignItems: 'center',
+    width: 30,
+  },
+  momentSymbol: {
+    fontSize: 20,
+    color: Colors.status.info,
+  },
+  loadTriangular: {
+    position: 'absolute',
+    top: BEAM_VIEW_HEIGHT / 2 - 35,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 176, 0, 0.1)',
+    borderLeftWidth: 1,
+    borderLeftColor: Colors.status.error,
+    borderRightWidth: 2,
+    borderRightColor: Colors.status.error,
   },
 });
