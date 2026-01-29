@@ -1,0 +1,990 @@
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  Modal,
+} from 'react-native';
+import { useReactionStore } from '@/store/useReactionStore';
+import { Colors, Typography, Spacing } from '@/utils/theme';
+import {
+  SupportType,
+  LoadType,
+  type Load,
+  type Support,
+  PRESET_LABELS,
+} from '@/utils/structural/reactionCalculator';
+import { ReactionDiagrams } from './ReactionDiagrams';
+
+// ============================================================================
+// PRESET SELECTOR
+// ============================================================================
+
+const PresetSelector: React.FC = () => {
+  const { loadPreset, selectedPreset } = useReactionStore();
+
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>HAZIR SİSTEMLER</Text>
+      <View style={styles.presetGrid}>
+        {Object.entries(PRESET_LABELS).map(([key, label]) => (
+          <TouchableOpacity
+            key={key}
+            style={[styles.presetButton, selectedPreset === key && styles.presetButtonActive]}
+            onPress={() => loadPreset(key)}
+            activeOpacity={0.7}
+          >
+            <Text
+              style={[
+                styles.presetButtonText,
+                selectedPreset === key && styles.presetButtonTextActive,
+              ]}
+            >
+              {label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+};
+
+// ============================================================================
+// BEAM CONFIGURATION
+// ============================================================================
+
+const BeamConfig: React.FC = () => {
+  const { beamLength, setBeamLength } = useReactionStore();
+  const [lengthInput, setLengthInput] = useState(beamLength.toString());
+
+  const handleLengthChange = (text: string) => {
+    setLengthInput(text);
+    const val = parseFloat(text);
+    if (!isNaN(val) && val > 0) {
+      setBeamLength(val);
+    }
+  };
+
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>KİRİŞ UZUNLUĞU (m)</Text>
+      <TextInput
+        style={styles.numericInput}
+        value={lengthInput}
+        onChangeText={handleLengthChange}
+        keyboardType="decimal-pad"
+        placeholder="6.0"
+        placeholderTextColor={Colors.amber.dim}
+      />
+    </View>
+  );
+};
+
+// ============================================================================
+// SUPPORT MANAGER
+// ============================================================================
+
+const SupportManager: React.FC = () => {
+  const { supports, addSupport, removeSupport } = useReactionStore();
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newSupportType, setNewSupportType] = useState<SupportType>(SupportType.PINNED);
+  const [newSupportPos, setNewSupportPos] = useState('0');
+
+  const handleAddSupport = () => {
+    const pos = parseFloat(newSupportPos);
+    if (!isNaN(pos) && pos >= 0) {
+      addSupport({ type: newSupportType, position: pos });
+      setShowAddModal(false);
+    }
+  };
+
+  return (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>MESNETLER</Text>
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => setShowAddModal(true)}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.addButtonText}>+</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.itemList}>
+        {supports.map((support, index) => (
+          <View key={index} style={styles.itemRow}>
+            <View style={styles.itemInfo}>
+              <Text style={styles.itemLabel}>
+                {support.type === SupportType.FIXED && 'SABİT'}
+                {support.type === SupportType.PINNED && 'MAFSALLI'}
+                {support.type === SupportType.ROLLER && 'DÖNEBİLİR'}
+              </Text>
+              <Text style={styles.itemSublabel}>x = {support.position.toFixed(2)} m</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.removeButton}
+              onPress={() => removeSupport(index)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.removeButtonText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+        ))}
+        {supports.length === 0 && (
+          <Text style={styles.emptyText}>Mesnet ekleyin veya preset seçin</Text>
+        )}
+      </View>
+
+      {/* Add Support Modal */}
+      <Modal visible={showAddModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>MESNET EKLE</Text>
+
+            <Text style={styles.modalLabel}>Tip:</Text>
+            <View style={styles.modalOptions}>
+              {[
+                { type: SupportType.FIXED, label: 'Sabit' },
+                { type: SupportType.PINNED, label: 'Mafsallı' },
+                { type: SupportType.ROLLER, label: 'Döenebilir' },
+              ].map((opt) => (
+                <TouchableOpacity
+                  key={opt.type}
+                  style={[
+                    styles.modalOption,
+                    newSupportType === opt.type && styles.modalOptionActive,
+                  ]}
+                  onPress={() => setNewSupportType(opt.type)}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.modalOptionText,
+                      newSupportType === opt.type && styles.modalOptionTextActive,
+                    ]}
+                  >
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={styles.modalLabel}>Pozisyon (m):</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={newSupportPos}
+              onChangeText={setNewSupportPos}
+              keyboardType="decimal-pad"
+              placeholder="0.00"
+              placeholderTextColor={Colors.amber.dim}
+            />
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalButtonCancel}
+                onPress={() => setShowAddModal(false)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.modalButtonText}>İPTAL</Text>
+              </TouchableOpacity>
+              <View style={styles.buttonSpacer} />
+              <TouchableOpacity
+                style={styles.modalButtonOk}
+                onPress={handleAddSupport}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.modalButtonText}>EKLE</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+};
+
+// ============================================================================
+// LOAD MANAGER
+// ============================================================================
+
+const LoadManager: React.FC = () => {
+  const { loads, removeLoad } = useReactionStore();
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newLoadType, setNewLoadType] = useState<LoadType>(LoadType.POINT);
+
+  const loadTypeLabels: Record<LoadType, string> = {
+    [LoadType.POINT]: 'NOKTA YÜKÜ',
+    [LoadType.UDL]: 'YAYILI YÜK',
+    [LoadType.MOMENT]: 'MOMENT',
+    [LoadType.TRIANGULAR]: 'ÜÇGEN YÜK',
+  };
+
+  const formatLoad = (load: Load): string => {
+    switch (load.type) {
+      case LoadType.POINT:
+        return `P = ${Math.abs(load.magnitude).toFixed(1)} kN @ x = ${load.position}m`;
+      case LoadType.UDL:
+        return `w = ${Math.abs(load.magnitude).toFixed(1)} kN/m [${load.startPosition}m - ${load.endPosition}m]`;
+      case LoadType.MOMENT:
+        return `M = ${load.magnitude.toFixed(1)} kNm @ x = ${load.position}m`;
+      case LoadType.TRIANGULAR:
+        return `Tri: w_max = ${Math.abs(load.maxMagnitude).toFixed(1)} kN/m [${load.startPosition}m - ${load.endPosition}m]`;
+    }
+  };
+
+  return (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>YÜKLER</Text>
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => setShowAddModal(true)}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.addButtonText}>+</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.itemList}>
+        {loads.map((load, index) => (
+          <View key={index} style={styles.itemRow}>
+            <View style={styles.itemInfo}>
+              <Text style={styles.itemLabel}>{loadTypeLabels[load.type]}</Text>
+              <Text style={styles.itemSublabel}>{formatLoad(load)}</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.removeButton}
+              onPress={() => removeLoad(index)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.removeButtonText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+        ))}
+        {loads.length === 0 && (
+          <Text style={styles.emptyText}>Yük ekleyin veya preset seçin</Text>
+        )}
+      </View>
+
+      <AddLoadModal
+        visible={showAddModal}
+        loadType={newLoadType}
+        onLoadTypeChange={setNewLoadType}
+        onClose={() => setShowAddModal(false)}
+      />
+    </View>
+  );
+};
+
+// ============================================================================
+// ADD LOAD MODAL
+// ============================================================================
+
+interface AddLoadModalProps {
+  visible: boolean;
+  loadType: LoadType;
+  onLoadTypeChange: (type: LoadType) => void;
+  onClose: () => void;
+}
+
+const AddLoadModal: React.FC<AddLoadModalProps> = ({
+  visible,
+  loadType,
+  onLoadTypeChange,
+  onClose,
+}) => {
+  const { addLoad } = useReactionStore();
+
+  // Input states - reset when modal opens
+  const [pos, setPos] = useState('3');
+  const [mag, setMag] = useState('10');
+  const [startPos, setStartPos] = useState('0');
+  const [endPos, setEndPos] = useState('6');
+
+  const handleAdd = () => {
+    switch (loadType) {
+      case LoadType.POINT:
+        addLoad({
+          type: LoadType.POINT,
+          position: parseFloat(pos) || 3,
+          magnitude: -parseFloat(mag) || -10, // negative = downward
+        });
+        break;
+      case LoadType.UDL:
+        addLoad({
+          type: LoadType.UDL,
+          startPosition: parseFloat(startPos) || 0,
+          endPosition: parseFloat(endPos) || 6,
+          magnitude: -parseFloat(mag) || -5,
+        });
+        break;
+      case LoadType.MOMENT:
+        addLoad({
+          type: LoadType.MOMENT,
+          position: parseFloat(pos) || 3,
+          magnitude: parseFloat(mag) || 10,
+        });
+        break;
+      case LoadType.TRIANGULAR:
+        addLoad({
+          type: LoadType.TRIANGULAR,
+          startPosition: parseFloat(startPos) || 0,
+          endPosition: parseFloat(endPos) || 6,
+          maxMagnitude: -parseFloat(mag) || -10,
+        });
+        break;
+    }
+    onClose();
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="fade">
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <Text style={styles.modalTitle}>YÜK EKLE</Text>
+
+          {/* Load Type Selector */}
+          <Text style={styles.modalLabel}>Yük Tipi:</Text>
+          <View style={styles.loadTypeSelector}>
+            {[
+              { type: LoadType.POINT, label: 'Nokta', short: 'P' },
+              { type: LoadType.UDL, label: 'Yayılı', short: 'w' },
+              { type: LoadType.MOMENT, label: 'Moment', short: 'M' },
+              { type: LoadType.TRIANGULAR, label: 'Üçgen', short: '△' },
+            ].map((opt) => (
+              <TouchableOpacity
+                key={opt.type}
+                style={[styles.loadTypeButton, loadType === opt.type && styles.loadTypeButtonActive]}
+                onPress={() => onLoadTypeChange(opt.type)}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.loadTypeButtonText,
+                    loadType === opt.type && styles.loadTypeButtonTextActive,
+                  ]}
+                >
+                  {opt.short}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Dynamic Inputs based on load type */}
+          {loadType === LoadType.POINT && (
+            <>
+              <Text style={styles.modalLabel}>Pozisyon (m):</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={pos}
+                onChangeText={setPos}
+                keyboardType="decimal-pad"
+                placeholder="3.00"
+                placeholderTextColor={Colors.amber.dim}
+              />
+              <Text style={styles.modalLabel}>Büyüklük (kN):</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={mag}
+                onChangeText={setMag}
+                keyboardType="decimal-pad"
+                placeholder="10.00"
+                placeholderTextColor={Colors.amber.dim}
+              />
+            </>
+          )}
+
+          {loadType === LoadType.UDL && (
+            <>
+              <Text style={styles.modalLabel}>Başlangıç (m):</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={startPos}
+                onChangeText={setStartPos}
+                keyboardType="decimal-pad"
+                placeholder="0.00"
+                placeholderTextColor={Colors.amber.dim}
+              />
+              <Text style={styles.modalLabel}>Bitiş (m):</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={endPos}
+                onChangeText={setEndPos}
+                keyboardType="decimal-pad"
+                placeholder="6.00"
+                placeholderTextColor={Colors.amber.dim}
+              />
+              <Text style={styles.modalLabel}>Şiddet (kN/m):</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={mag}
+                onChangeText={setMag}
+                keyboardType="decimal-pad"
+                placeholder="5.00"
+                placeholderTextColor={Colors.amber.dim}
+              />
+            </>
+          )}
+
+          {loadType === LoadType.MOMENT && (
+            <>
+              <Text style={styles.modalLabel}>Pozisyon (m):</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={pos}
+                onChangeText={setPos}
+                keyboardType="decimal-pad"
+                placeholder="3.00"
+                placeholderTextColor={Colors.amber.dim}
+              />
+              <Text style={styles.modalLabel}>Moment (kNm):</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={mag}
+                onChangeText={setMag}
+                keyboardType="decimal-pad"
+                placeholder="10.00"
+                placeholderTextColor={Colors.amber.dim}
+              />
+            </>
+          )}
+
+          {loadType === LoadType.TRIANGULAR && (
+            <>
+              <Text style={styles.modalLabel}>Başlangıç (m):</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={startPos}
+                onChangeText={setStartPos}
+                keyboardType="decimal-pad"
+                placeholder="0.00"
+                placeholderTextColor={Colors.amber.dim}
+              />
+              <Text style={styles.modalLabel}>Bitiş (m):</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={endPos}
+                onChangeText={setEndPos}
+                keyboardType="decimal-pad"
+                placeholder="6.00"
+                placeholderTextColor={Colors.amber.dim}
+              />
+              <Text style={styles.modalLabel}>Max Şiddet (kN/m):</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={mag}
+                onChangeText={setMag}
+                keyboardType="decimal-pad"
+                placeholder="10.00"
+                placeholderTextColor={Colors.amber.dim}
+              />
+            </>
+          )}
+
+          <View style={styles.modalButtons}>
+            <TouchableOpacity
+              style={styles.modalButtonCancel}
+              onPress={onClose}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.modalButtonText}>İPTAL</Text>
+            </TouchableOpacity>
+            <View style={styles.buttonSpacer} />
+            <TouchableOpacity
+              style={styles.modalButtonOk}
+              onPress={handleAdd}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.modalButtonText}>EKLE</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+// ============================================================================
+// RESULTS SCREEN
+// ============================================================================
+
+const ResultsScreen: React.FC = () => {
+  const { results, setShowResults } = useReactionStore();
+
+  if (!results || !results.isValid) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorTitle}>HESAPLAMA BAŞARISIZ</Text>
+        <Text style={styles.errorMessage}>{results?.errorMessage || 'Bilinmeyen hata'}</Text>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => setShowResults(false)}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.backButtonText}>GERİ DÖN</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView style={styles.resultsContainer}>
+      <View style={styles.resultsHeader}>
+        <Text style={styles.resultsTitle}>HESAP SONUÇLARI</Text>
+        <TouchableOpacity
+          style={styles.closeResultsButton}
+          onPress={() => setShowResults(false)}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.closeResultsText}>✕</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Reactions */}
+      <View style={styles.resultSection}>
+        <Text style={styles.resultSectionTitle}>REAKSİYONLAR</Text>
+        {Array.from(results.reactions.entries()).map(([idx, r]) => (
+          <View key={idx} style={styles.resultItem}>
+            <Text style={styles.resultLabel}>Mesnet #{parseInt(idx) + 1}</Text>
+            <View style={styles.resultValues}>
+              <Text style={styles.resultValue}>R_x = {r.horizontal.toFixed(2)} kN</Text>
+              <Text style={styles.resultValue}>R_y = {r.vertical.toFixed(2)} kN</Text>
+              {Math.abs(r.moment) > 0.01 && (
+                <Text style={styles.resultValue}>M = {r.moment.toFixed(2)} kNm</Text>
+              )}
+            </View>
+          </View>
+        ))}
+      </View>
+
+      {/* Max Values */}
+      <View style={styles.resultSection}>
+        <Text style={styles.resultSectionTitle}>EKSTREMUM DEĞERLER</Text>
+        <View style={styles.resultValues}>
+          <Text style={styles.resultValue}>
+            Max Kayma: V_max = {Math.abs(results.maxShear.value).toFixed(2)} kN @ x ={' '}
+            {results.maxShear.position.toFixed(2)} m
+          </Text>
+          <Text style={styles.resultValue}>
+            Max Moment: M_max = {results.maxMoment.value.toFixed(2)} kNm @ x ={' '}
+            {results.maxMoment.position.toFixed(2)} m
+          </Text>
+          {Math.abs(results.minMoment.value - results.maxMoment.value) > 0.01 && (
+            <Text style={styles.resultValue}>
+              Min Moment: M_min = {results.minMoment.value.toFixed(2)} kNm @ x ={' '}
+              {results.minMoment.position.toFixed(2)} m
+            </Text>
+          )}
+        </View>
+      </View>
+
+      {/* Diagrams */}
+      <ReactionDiagrams results={results} />
+    </ScrollView>
+  );
+};
+
+// ============================================================================
+// MAIN SCREEN
+// ============================================================================
+
+export const ReactionScreen: React.FC = () => {
+  const { showResults, calculate, results } = useReactionStore();
+
+  if (showResults && results) {
+    return <ResultsScreen />;
+  }
+
+  return (
+    <View style={styles.container}>
+      <ScrollView style={styles.scrollView}>
+        <PresetSelector />
+        <BeamConfig />
+        <SupportManager />
+        <LoadManager />
+      </ScrollView>
+
+      {/* Calculate Button */}
+      <TouchableOpacity style={styles.calculateButton} onPress={calculate} activeOpacity={0.7}>
+        <Text style={styles.calculateButtonText}>HESAPLA ▶</Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
+
+// ============================================================================
+// STYLES
+// ============================================================================
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: Colors.black,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  section: {
+    padding: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.amber.dim,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  sectionTitle: {
+    fontFamily: Typography.family.mono,
+    fontSize: Typography.sizes.sm,
+    color: Colors.amber.secondary,
+    fontWeight: 'bold',
+  },
+
+  // Preset Grid
+  presetGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginLeft: Spacing.xs,
+  },
+  presetButton: {
+    width: '48%',
+    marginTop: Spacing.xs,
+    marginRight: Spacing.sm,
+    padding: Spacing.sm,
+    backgroundColor: Colors.gray[100],
+    borderWidth: 1,
+    borderColor: Colors.amber.dim,
+  },
+  presetButtonActive: {
+    backgroundColor: Colors.amber.bg,
+    borderColor: Colors.amber.secondary,
+  },
+  presetButtonText: {
+    fontFamily: Typography.family.mono,
+    fontSize: Typography.sizes.xs,
+    color: Colors.amber.primary,
+    textAlign: 'center',
+  },
+  presetButtonTextActive: {
+    color: Colors.amber.secondary,
+    fontWeight: 'bold',
+  },
+
+  // Beam Config
+  numericInput: {
+    fontFamily: Typography.family.mono,
+    fontSize: Typography.sizes.md,
+    color: Colors.amber.primary,
+    backgroundColor: Colors.black,
+    borderWidth: 1,
+    borderColor: Colors.amber.primary,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    marginTop: Spacing.xs,
+  },
+
+  // Item List (Supports/Loads)
+  itemList: {
+    marginTop: Spacing.sm,
+  },
+  itemRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: Spacing.sm,
+    backgroundColor: Colors.black,
+    borderWidth: 1,
+    borderColor: Colors.gray[200],
+    marginBottom: Spacing.xs,
+  },
+  itemInfo: {
+    flex: 1,
+  },
+  itemLabel: {
+    fontFamily: Typography.family.mono,
+    fontSize: Typography.sizes.sm,
+    color: Colors.amber.primary,
+    fontWeight: 'bold',
+  },
+  itemSublabel: {
+    fontFamily: Typography.family.mono,
+    fontSize: Typography.sizes.xs,
+    color: Colors.gray[300],
+    marginTop: 2,
+  },
+  emptyText: {
+    fontFamily: Typography.family.mono,
+    fontSize: Typography.sizes.xs,
+    color: Colors.gray[300],
+    textAlign: 'center',
+    padding: Spacing.md,
+    fontStyle: 'italic',
+  },
+  addButton: {
+    width: 32,
+    height: 32,
+    backgroundColor: Colors.status.success,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 4,
+  },
+  addButtonText: {
+    color: Colors.black,
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  removeButton: {
+    width: 28,
+    height: 28,
+    backgroundColor: Colors.status.error,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 4,
+  },
+  removeButtonText: {
+    color: Colors.white,
+    fontSize: Typography.sizes.sm,
+    fontWeight: 'bold',
+  },
+
+  // Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.lg,
+  },
+  modalContent: {
+    backgroundColor: Colors.black,
+    borderWidth: 2,
+    borderColor: Colors.amber.primary,
+    padding: Spacing.lg,
+    width: '100%',
+    maxWidth: 320,
+  },
+  modalTitle: {
+    fontFamily: Typography.family.mono,
+    fontSize: Typography.sizes.md,
+    color: Colors.amber.secondary,
+    fontWeight: 'bold',
+    marginBottom: Spacing.md,
+    textAlign: 'center',
+  },
+  modalLabel: {
+    fontFamily: Typography.family.mono,
+    fontSize: Typography.sizes.sm,
+    color: Colors.amber.primary,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.xs,
+  },
+  modalInput: {
+    fontFamily: Typography.family.mono,
+    fontSize: Typography.sizes.sm,
+    color: Colors.amber.primary,
+    backgroundColor: Colors.gray[100],
+    borderWidth: 1,
+    borderColor: Colors.amber.dim,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    marginTop: Spacing.xs,
+  },
+  modalOptions: {
+    flexDirection: 'row',
+    marginTop: Spacing.xs,
+  },
+  modalOption: {
+    flex: 1,
+    padding: Spacing.sm,
+    backgroundColor: Colors.gray[100],
+    borderWidth: 1,
+    borderColor: Colors.amber.dim,
+    marginRight: Spacing.xs,
+  },
+  modalOptionActive: {
+    backgroundColor: Colors.amber.bg,
+    borderColor: Colors.amber.secondary,
+  },
+  modalOptionText: {
+    fontFamily: Typography.family.mono,
+    fontSize: Typography.sizes.xs,
+    color: Colors.amber.primary,
+    textAlign: 'center',
+  },
+  modalOptionTextActive: {
+    color: Colors.amber.secondary,
+    fontWeight: 'bold',
+  },
+  buttonSpacer: {
+    width: Spacing.sm,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    marginTop: Spacing.lg,
+  },
+  modalButtonCancel: {
+    flex: 1,
+    padding: Spacing.sm,
+    backgroundColor: Colors.gray[200],
+    borderWidth: 1,
+    borderColor: Colors.gray[300],
+  },
+  modalButtonOk: {
+    flex: 1,
+    padding: Spacing.sm,
+    backgroundColor: Colors.amber.primary,
+    borderWidth: 1,
+    borderColor: Colors.amber.secondary,
+  },
+  modalButtonText: {
+    fontFamily: Typography.family.mono,
+    fontSize: Typography.sizes.sm,
+    color: Colors.black,
+    textAlign: 'center',
+    fontWeight: 'bold',
+  },
+  loadTypeSelector: {
+    flexDirection: 'row',
+    marginTop: Spacing.xs,
+  },
+  loadTypeButton: {
+    flex: 1,
+    padding: Spacing.sm,
+    backgroundColor: Colors.gray[100],
+    borderWidth: 1,
+    borderColor: Colors.amber.dim,
+    marginRight: Spacing.xs,
+  },
+  loadTypeButtonActive: {
+    backgroundColor: Colors.amber.bg,
+    borderColor: Colors.amber.secondary,
+  },
+  loadTypeButtonText: {
+    fontFamily: Typography.family.mono,
+    fontSize: Typography.sizes.sm,
+    color: Colors.amber.primary,
+    textAlign: 'center',
+  },
+  loadTypeButtonTextActive: {
+    color: Colors.amber.secondary,
+    fontWeight: 'bold',
+  },
+
+  // Calculate Button
+  calculateButton: {
+    margin: Spacing.md,
+    padding: Spacing.md,
+    backgroundColor: Colors.amber.primary,
+    borderWidth: 2,
+    borderColor: Colors.amber.secondary,
+    borderRadius: 4,
+  },
+  calculateButtonText: {
+    fontFamily: Typography.family.mono,
+    fontSize: Typography.sizes.md,
+    color: Colors.black,
+    textAlign: 'center',
+    fontWeight: 'bold',
+  },
+
+  // Results
+  resultsContainer: {
+    flex: 1,
+    backgroundColor: Colors.black,
+  },
+  resultsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.amber.dim,
+  },
+  resultsTitle: {
+    fontFamily: Typography.family.mono,
+    fontSize: Typography.sizes.md,
+    color: Colors.amber.secondary,
+    fontWeight: 'bold',
+  },
+  closeResultsButton: {
+    width: 32,
+    height: 32,
+    backgroundColor: Colors.status.error,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 4,
+  },
+  closeResultsText: {
+    color: Colors.white,
+    fontWeight: 'bold',
+  },
+  resultSection: {
+    padding: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.amber.dim,
+  },
+  resultSectionTitle: {
+    fontFamily: Typography.family.mono,
+    fontSize: Typography.sizes.sm,
+    color: Colors.amber.secondary,
+    fontWeight: 'bold',
+    marginBottom: Spacing.sm,
+  },
+  resultItem: {
+    marginBottom: Spacing.sm,
+  },
+  resultLabel: {
+    fontFamily: Typography.family.mono,
+    fontSize: Typography.sizes.sm,
+    color: Colors.amber.primary,
+    fontWeight: 'bold',
+  },
+  resultValues: {
+    marginLeft: Spacing.sm,
+  },
+  resultValue: {
+    fontFamily: Typography.family.mono,
+    fontSize: Typography.sizes.xs,
+    color: Colors.gray[300],
+    marginBottom: 2,
+  },
+
+  // Error
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.lg,
+  },
+  errorTitle: {
+    fontFamily: Typography.family.mono,
+    fontSize: Typography.sizes.md,
+    color: Colors.status.error,
+    fontWeight: 'bold',
+    marginBottom: Spacing.sm,
+  },
+  errorMessage: {
+    fontFamily: Typography.family.mono,
+    fontSize: Typography.sizes.sm,
+    color: Colors.gray[300],
+    textAlign: 'center',
+    marginBottom: Spacing.lg,
+  },
+  backButton: {
+    padding: Spacing.sm,
+    backgroundColor: Colors.gray[200],
+    borderWidth: 1,
+    borderColor: Colors.amber.dim,
+  },
+  backButtonText: {
+    fontFamily: Typography.family.mono,
+    fontSize: Typography.sizes.sm,
+    color: Colors.amber.primary,
+  },
+});
