@@ -5,7 +5,9 @@ import { Colors, Typography, Spacing } from '@/utils/theme';
 import type { AnalysisResults } from '@/utils/structural/reactionCalculator';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CHART_WIDTH = SCREEN_WIDTH - Spacing.md * 2;
+// iOS için SafeArea margin'lerini hesaba kat
+const SAFE_MARGIN = Spacing.md * 2;
+const CHART_WIDTH = Math.min(SCREEN_WIDTH - SAFE_MARGIN, 380); // Maksimum genişlik sınırı
 const CHART_HEIGHT = 120;
 const PADDING = 30;
 
@@ -62,12 +64,32 @@ export const ReactionDiagrams: React.FC<ReactionDiagramsProps> = ({ results }) =
     return path;
   };
 
-  // Generate filled area path
-  const generateAreaPath = (data: typeof shearData, maxVal: number) => {
+  // Generate filled area path for shear diagram
+  const generateShearAreaPath = (data: typeof shearData, maxVal: number) => {
     const path = Skia.Path.Make();
     data.forEach((point, i) => {
       const x = scaleX(point.x);
-      const y = scaleY(point.shear || point.moment, maxVal, true);
+      const y = scaleY(point.shear, maxVal, true);
+      if (i === 0) {
+        path.moveTo(x, CHART_HEIGHT / 2); // Start at zero line
+        path.lineTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    });
+    // Close path back to zero line
+    const lastX = scaleX(data[data.length - 1].x);
+    path.lineTo(lastX, CHART_HEIGHT / 2);
+    path.close();
+    return path;
+  };
+
+  // Generate filled area path for moment diagram
+  const generateMomentAreaPath = (data: typeof momentData, maxVal: number) => {
+    const path = Skia.Path.Make();
+    data.forEach((point, i) => {
+      const x = scaleX(point.x);
+      const y = scaleY(point.moment, maxVal, true);
       if (i === 0) {
         path.moveTo(x, CHART_HEIGHT / 2); // Start at zero line
         path.lineTo(x, y);
@@ -84,7 +106,7 @@ export const ReactionDiagrams: React.FC<ReactionDiagramsProps> = ({ results }) =
 
   const shearPath = generateShearPath();
   const momentPath = generateMomentPath();
-  const shearArea = generateAreaPath(shearData, shearMax);
+  const shearArea = generateShearAreaPath(shearData, shearMax);
 
   // Generate zero line path
   const zeroLinePath = () => {
@@ -228,7 +250,7 @@ const styles = StyleSheet.create({
   },
   axisLabel: {
     fontFamily: Typography.family.mono,
-    fontSize: Typography.sizes.xs - 2,
+    fontSize: Typography.sizes.xs,
     color: Colors.gray[300],
   },
   diagramNote: {
@@ -259,7 +281,8 @@ const styles = StyleSheet.create({
   },
   tickLabel: {
     fontFamily: Typography.family.mono,
-    fontSize: Typography.sizes.xs - 2,
+    fontSize: Typography.sizes.xs,
     color: Colors.gray[300],
   },
 });
+

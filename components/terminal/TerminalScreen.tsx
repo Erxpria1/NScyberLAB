@@ -5,10 +5,18 @@ import { useTerminalStore, type ActiveScreen } from '@/store/useTerminalStore';
 import { ControlTower } from './ControlTower';
 import { ReactionScreen } from '@/components/reaction';
 import { SupportScreen } from '@/components/support';
+import { BeamEducationScreen } from '@/components/beam';
+import { Game3DScreen } from '@/components/game-3d';
+import { TrussAnalysisScreen } from '@/components/structural/TrussAnalysisScreen';
+import { SectionPropertiesScreen } from '@/components/structural/SectionPropertiesScreen';
+import { MaterialDatabaseScreen } from '@/components/structural/MaterialDatabaseScreen';
+import { LoadCombinationsScreen } from '@/components/structural/LoadCombinationsScreen';
 import { Colors, Typography, Spacing } from '@/utils/theme';
 import { StatusBar } from 'expo-status-bar';
 import { Canvas, Rect } from '@shopify/react-native-skia';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { evaluate, format } from 'mathjs';
+import { useDeviceStatus } from '@/hooks/useDeviceStatus';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -38,17 +46,17 @@ interface TerminalStatusBarProps {
 }
 
 const TerminalStatusBar: React.FC<TerminalStatusBarProps> = ({ paddingTop }) => {
-  const status = useTerminalStore((s) => s.status);
+  const deviceStatus = useDeviceStatus();
 
   return (
     <View style={[styles.statusBar, { paddingTop }]}>
       <View style={styles.statusLeft}>
-        <Text style={styles.statusText}>MEM: {status.memory}%</Text>
-        <Text style={styles.statusText}>BAT: {status.battery}%</Text>
-        <Text style={styles.statusText}>CONN: {status.connection}</Text>
+        <Text style={styles.statusText}>BELLEK: {deviceStatus.memory}%</Text>
+        <Text style={styles.statusText}>PİL: {deviceStatus.battery}%</Text>
+        <Text style={styles.statusText}>BAĞLANTI: {deviceStatus.connection}</Text>
       </View>
       <View style={styles.statusRight}>
-        <Text style={[styles.statusText, styles.modeText]}>NS-CYBER-LAB v1.0</Text>
+        <Text style={[styles.statusText, styles.modeText]}>NS-SİBER-LAB v1.0</Text>
       </View>
     </View>
   );
@@ -82,31 +90,35 @@ const BootSequence: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
   const [progress, setProgress] = useState(0);
 
   const bootMessages = [
-    'NS-CYBER-LAB OS v1.0',
-    'Checking hardware...',
-    'Loading kernel...',
-    'Initializing math engine...',
-    'Loading graphics modules...',
-    'Mounting filesystem...',
+    'NS-SİBER-LAB OS v1.0',
+    'Donanım kontrol ediliyor...',
+    'Kernel yükleniyor...',
+    'Matematik motoru başlatılıyor...',
+    'Grafik modülleri yükleniyor...',
+    'Dosya sistemi bağlanıyor...',
     '',
-    'SYSTEM READY',
+    'SİSTEM HAZIR',
   ];
 
   useEffect(() => {
-    let timeout: NodeJS.Timeout;
+    const timeouts: NodeJS.Timeout[] = [];
 
     bootMessages.forEach((msg, index) => {
-      timeout = setTimeout(() => {
+      const timeout = setTimeout(() => {
         setMessages((prev) => [...prev, msg]);
         setProgress(((index + 1) / bootMessages.length) * 100);
 
         if (index === bootMessages.length - 1) {
-          setTimeout(onComplete, 800);
+          const completeTimeout = setTimeout(onComplete, 800);
+          timeouts.push(completeTimeout);
         }
       }, index * 400);
+      timeouts.push(timeout);
     });
 
-    return () => clearTimeout(timeout);
+    return () => {
+      timeouts.forEach(clearTimeout);
+    };
   }, []);
 
   return (
@@ -176,42 +188,65 @@ export const TerminalScreen: React.FC = () => {
 
     switch (cmd) {
       case 'BEAM':
-        addCommand(text, '>> BEAM MODULE INITIALIZED\n>> Enter beam parameters or type "beam help"');
+        addCommand(text, '>> KİRİŞ EĞİTİM MODÜLÜ BAŞLATILDI\n>> İnteraktif dersler açılıyor...');
+        setActiveScreen('beam');
         break;
       case 'TRUSS':
-        addCommand(text, '>> TRUSS SOLVER READY\n>> Use node/add and member/add commands');
+      case 'KAFES':
+        addCommand(text, '>> KAFES SİSTEM ANALİZİ\n>> Eklem yöntemi ile çubuk kuvvetleri hesaplanır');
+        setActiveScreen('truss');
+        break;
+      case 'SECTION':
+      case 'KESIT':
+        addCommand(text, '>> KESİT ÖZELLİKLERİ HESAPLARI\n>> I, W, r değerleri ve TS 500 profilleri');
+        setActiveScreen('section');
+        break;
+      case 'MATERIAL':
+      case 'MALZEME':
+        addCommand(text, '>> MALZEME VERİTABANI\n>> TS 500 Beton, TS 708 Çelik verileri');
+        setActiveScreen('material');
+        break;
+      case 'LOADS':
+      case 'KOMBINASYON':
+        addCommand(text, '>> YÜK KOMBİNASYONLARI\n>> TS 498 standart kombinasyonları');
+        setActiveScreen('loads');
         break;
       case 'PDF':
       case 'LIBRARY':
-        addCommand(text, '>> PDF LIBRARY ACCESS\n>> Opening library...');
+        addCommand(text, '>> PDF KÜTÜPHANESİ ERİŞİMİ\n>> Kütüphane açılıyor...');
         router.push('/library');
         break;
       case 'CALC':
-        addCommand(text, '>> CALCULATOR MODE\n>> Type expression (e.g., "calc 2+2" or "calc x^2")\n>> LaTeX formulas supported');
+        addCommand(text, '>> HESAP MAKİNESİ MODU\n>> İşlem yazın (örn: "calc 2+2" veya "calc x^2")\n>> LaTeX formülleri desteklenir');
         break;
       case '3D':
-        addCommand(text, '>> 3D RENDERING ENGINE\n>> WebGL context: READY');
+        addCommand(text, '>> 3D GÖRSELLEŞTİRME MOTORU\n>> WebGL bağlamı: HAZIR\n>> Görselleştirme modülü açılıyor...');
+        setActiveScreen('3d');
         break;
-      case 'SUPPORT':
-        addCommand(text, '>> SUPPORT MODULE INITIALIZED\n>> Opening documentation...');
+      case 'HOME':
+      case 'CYBERHOME':
+        addCommand(text, '>> SİBER-ANA-SAYFA MODÜLÜ BAŞLATILDI\n>> Kişisel panel açılıyor...');
         setActiveScreen('support');
         break;
       case 'REACTION':
-        addCommand(text, '>> REACTION FORCES MODULE\n>> Opening simulation interface...');
+        addCommand(text, '>> TEPKİ KUVVETLERİ MODÜLÜ\n>> Simülasyon arayüzü açılıyor...');
         setActiveScreen('reaction');
         break;
       case 'HELP':
         addCommand(text,
-          '>> AVAILABLE COMMANDS:\n' +
-          '   BEAM    - Beam analysis module\n' +
-          '   TRUSS   - Truss solver\n' +
-          '   PDF     - Document library\n' +
-          '   CALC    - Calculator & converter\n' +
-          '   3D      - 3D visualization\n' +
-          '   SUPPORT - Help & documentation\n' +
-          '   REACTION- Force reaction calculator\n' +
-          '   CLEAR   - Clear terminal\n' +
-          '   STATUS  - System status'
+          '>> KULLANILABİLİR KOMUTLAR:\n' +
+          '   BEAM      - Kiriş analiz modülü\n' +
+          '   TRUSS     - Kafes sistem çözücü\n' +
+          '   SECTION   - Kesit özellikleri hesabı\n' +
+          '   MATERIAL  - Malzeme veritabanı\n' +
+          '   LOADS     - Yük kombinasyonları (TS 498)\n' +
+          '   PDF       - Belge kütüphanesi\n' +
+          '   CALC      - Hesap makinesi & dönüştürücü\n' +
+          '   3D        - 3D görselleştirme\n' +
+          '   HOME      - Siber-Ana-Sayfa paneli\n' +
+          '   REACTION  - Tepki kuvveti hesaplayıcı\n' +
+          '   CLEAR     - Terminali temizle\n' +
+          '   STATUS    - Sistem durumu'
         );
         break;
       case 'CLEAR':
@@ -219,11 +254,11 @@ export const TerminalScreen: React.FC = () => {
         break;
       case 'STATUS':
         addCommand(text,
-          '>> SYSTEM STATUS:\n' +
-          '   Memory: 75%\n' +
-          '   Storage: 2.4GB free\n' +
-          '   Modules: LOADED\n' +
-          '   Connection: ONLINE'
+          '>> SİSTEM DURUMU:\n' +
+          '   Bellek: 75%\n' +
+          '   Depolama: 2.4GB boş\n' +
+          '   Modüller: YÜKLENDİ\n' +
+          '   Bağlantı: ÇEVRİMİÇİ'
         );
         break;
       default:
@@ -231,19 +266,18 @@ export const TerminalScreen: React.FC = () => {
         if (text.toLowerCase().startsWith('calc ')) {
           const expression = text.substring(5).trim();
           try {
-            const { evaluate, format } = require('mathjs');
             const result = evaluate(expression);
-            const latex = format(result, { latex: true, precision: 4 });
+            const latex = format(result, { notation: 'fixed', precision: 4 });
             addCommand(text,
-              `>> Expression: ${expression}\n` +
-              `>> Result: ${result}\n` +
+              `>> İşlem: ${expression}\n` +
+              `>> Sonuç: ${result}\n` +
               `>> LaTeX: ${latex}`
             );
           } catch (err) {
-            addCommand(text, `>> Calculation error: ${(err as Error).message}\n>> Check expression syntax`);
+            addCommand(text, `>> Hesaplama hatası: ${(err as Error).message}\n>> İşlem sözdizimini kontrol edin`);
           }
         } else if (text) {
-          addCommand(text, `>> Unknown command: ${text}\n>> Type HELP for available commands`);
+          addCommand(text, `>> Bilinmeyen komut: ${text}\n>> Mevcut komutlar için HELP yazın`);
         }
     }
   };
@@ -259,12 +293,12 @@ export const TerminalScreen: React.FC = () => {
     processCommand(tab.toLowerCase());
   };
 
-  if (!bootComplete) {
+  if (isBooting) {
     return (
       <>
         <StatusBar style="light" />
         <View style={[styles.container, { paddingTop: insets.top }]}>
-          <BootSequence onComplete={() => setBootComplete(true)} />
+          <BootSequence onComplete={() => setBooting(false)} />
         </View>
       </>
     );
@@ -283,9 +317,9 @@ export const TerminalScreen: React.FC = () => {
               onPress={() => setActiveScreen('terminal')}
               activeOpacity={0.7}
             >
-              <Text style={styles.backButtonText}>← TERMINAL</Text>
+              <Text style={styles.backButtonText}>← TERMİNAL</Text>
             </TouchableOpacity>
-            <Text style={styles.screenTitle}>REACTION FORCES</Text>
+            <Text style={styles.screenTitle}>TEPKİ KUVVETLERİ</Text>
             <View style={styles.placeholder} />
           </View>
           <ReactionScreen />
@@ -300,6 +334,76 @@ export const TerminalScreen: React.FC = () => {
       <>
         <StatusBar style="light" />
         <SupportScreen onReturn={() => setActiveScreen('terminal')} />
+      </>
+    );
+  }
+
+  // Show BeamEducationScreen when active
+  if (activeScreen === 'beam') {
+    return (
+      <>
+        <StatusBar style="light" />
+        <View style={[styles.container, { paddingTop: insets.top }]}>
+          <BeamEducationScreen onBack={() => setActiveScreen('terminal')} />
+        </View>
+      </>
+    );
+  }
+
+  // Show Game3DScreen when active
+  if (activeScreen === '3d') {
+    return (
+      <>
+        <StatusBar style="light" />
+        <Game3DScreen onBack={() => setActiveScreen('terminal')} />
+      </>
+    );
+  }
+
+  // Show TrussAnalysisScreen when active
+  if (activeScreen === 'truss') {
+    return (
+      <>
+        <StatusBar style="light" />
+        <View style={[styles.container, { paddingTop: insets.top }]}>
+          <TrussAnalysisScreen onBack={() => setActiveScreen('terminal')} />
+        </View>
+      </>
+    );
+  }
+
+  // Show SectionPropertiesScreen when active
+  if (activeScreen === 'section') {
+    return (
+      <>
+        <StatusBar style="light" />
+        <View style={[styles.container, { paddingTop: insets.top }]}>
+          <SectionPropertiesScreen onBack={() => setActiveScreen('terminal')} />
+        </View>
+      </>
+    );
+  }
+
+  // Show MaterialDatabaseScreen when active
+  if (activeScreen === 'material') {
+    return (
+      <>
+        <StatusBar style="light" />
+        <View style={[styles.container, { paddingTop: insets.top }]}>
+          <MaterialDatabaseScreen onBack={() => setActiveScreen('terminal')} />
+        </View>
+      </>
+    );
+  }
+
+  // Show LoadCombinationsScreen when active
+  if (activeScreen === 'loads') {
+    return (
+      <>
+        <StatusBar style="light" />
+        <View style={[styles.container, { paddingTop: insets.top }]}>
+          <LoadCombinationsScreen onBack={() => setActiveScreen('terminal')} />
+        </View>
       </>
     );
   }
@@ -334,7 +438,7 @@ export const TerminalScreen: React.FC = () => {
             value={currentInput}
             onChangeText={setInput}
             onSubmitEditing={handleSubmit}
-            placeholder="Enter command..."
+            placeholder="Komut girin..."
             placeholderTextColor={Colors.amber.dim}
             autoCapitalize="characters"
             autoCorrect={false}
@@ -553,3 +657,38 @@ const styles = StyleSheet.create({
     width: 80,
   },
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

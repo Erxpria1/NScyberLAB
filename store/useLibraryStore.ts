@@ -19,6 +19,9 @@ interface LibraryState {
   currentDocument: PDFDocument | null;
   searchResults: SearchResult[];
 
+  // Standalone notes (not linked to any document)
+  standaloneNotes: Note[];
+
   // Folders
   folders: Folder[];
   currentFolder: string | null;
@@ -51,6 +54,7 @@ interface LibraryState {
   updateNote: (noteId: string, content: string, tags?: string[]) => void;
   removeNote: (noteId: string) => void;
   getNotesByDocument: (documentId: string) => Note[];
+  getStandaloneNotes: () => Note[];
 
   // Actions - Folders
   addFolder: (name: string, parentId: string | null) => string;
@@ -74,6 +78,7 @@ export const useLibraryStore = create<LibraryState>()(
       documents: [],
       currentDocument: null,
       searchResults: [],
+      standaloneNotes: [],
 
       folders: [
         { id: 'root', name: 'Tümü', parentId: null, path: 'Tümü' },
@@ -240,7 +245,7 @@ export const useLibraryStore = create<LibraryState>()(
           updatedAt: now,
         };
 
-        // If note is linked to a document
+        // If note is linked to a document, add to document's notes
         if (note.documentId) {
           set((state) => ({
             documents: state.documents.map((doc) =>
@@ -249,36 +254,79 @@ export const useLibraryStore = create<LibraryState>()(
                 : doc
             ),
           }));
+        } else {
+          // Standalone note - add to standaloneNotes array
+          set((state) => ({
+            standaloneNotes: [...state.standaloneNotes, newNote],
+          }));
         }
 
         return id;
       },
 
       updateNote: (noteId, content, tags) => {
-        set((state) => ({
-          documents: state.documents.map((doc) => ({
+        set((state) => {
+          // Try to update in documents first
+          const updatedDocuments = state.documents.map((doc) => ({
             ...doc,
             notes: doc.notes.map((note) =>
               note.id === noteId
                 ? { ...note, content, tags: tags ?? note.tags, updatedAt: new Date() }
                 : note
             ),
-          })),
-        }));
+          }));
+
+          // Check if note was found in documents
+          const foundInDocs = state.documents.some((doc) =>
+            doc.notes.some((note) => note.id === noteId)
+          );
+
+          if (foundInDocs) {
+            return { documents: updatedDocuments };
+          }
+
+          // Otherwise update in standalone notes
+          return {
+            standaloneNotes: state.standaloneNotes.map((note) =>
+              note.id === noteId
+                ? { ...note, content, tags: tags ?? note.tags, updatedAt: new Date() }
+                : note
+            ),
+          };
+        });
       },
 
       removeNote: (noteId) => {
-        set((state) => ({
-          documents: state.documents.map((doc) => ({
+        set((state) => {
+          // Try to remove from documents first
+          const updatedDocuments = state.documents.map((doc) => ({
             ...doc,
             notes: doc.notes.filter((n) => n.id !== noteId),
-          })),
-        }));
+          }));
+
+          // Check if note was found in documents
+          const foundInDocs = state.documents.some((doc) =>
+            doc.notes.some((note) => note.id === noteId)
+          );
+
+          if (foundInDocs) {
+            return { documents: updatedDocuments };
+          }
+
+          // Otherwise remove from standalone notes
+          return {
+            standaloneNotes: state.standaloneNotes.filter((n) => n.id !== noteId),
+          };
+        });
       },
 
       getNotesByDocument: (documentId) => {
         const doc = get().documents.find((d) => d.id === documentId);
         return doc?.notes ?? [];
+      },
+
+      getStandaloneNotes: () => {
+        return get().standaloneNotes;
       },
 
       // Folder Actions
@@ -310,7 +358,7 @@ export const useLibraryStore = create<LibraryState>()(
         // Simple in-memory search for now
         // TODO: Replace with SQLite FTS5
         const results: SearchResult[] = [];
-        const { documents } = get();
+        const { documents, standaloneNotes } = get();
         const searchText = query.text.toLowerCase();
 
         for (const doc of documents) {
@@ -355,6 +403,21 @@ export const useLibraryStore = create<LibraryState>()(
           }
         }
 
+        // Search in standalone notes
+        for (const note of standaloneNotes) {
+          if (note.content.toLowerCase().includes(searchText)) {
+            results.push({
+              type: 'note',
+              documentId: '',
+              documentTitle: 'Standalone Note',
+              page: note.page,
+              snippet: note.content.substring(0, 100),
+              score: 0.8,
+              tags: note.tags,
+            });
+          }
+        }
+
         // Sort by score
         results.sort((a, b) => b.score - a.score);
 
@@ -377,6 +440,7 @@ export const useLibraryStore = create<LibraryState>()(
         folders: state.folders.filter(f => !['root', 'recent', 'favorites'].includes(f.id)),
         viewMode: state.viewMode,
         sortBy: state.sortBy,
+        standaloneNotes: state.standaloneNotes,
       }),
     }
   )

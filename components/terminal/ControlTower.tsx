@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { Colors, Typography, Spacing } from '@/utils/theme';
+import { useThemeStore } from '@/store/useThemeStore';
+import { RetroDpad, RetroButton, RetroStatusBar } from '@/components/retro';
 
 interface ControlTowerProps {
   visible: boolean;
@@ -26,6 +28,8 @@ export const ControlTower: React.FC<ControlTowerProps> = ({
   onClose,
 }) => {
   const [buttonAnim] = React.useState(new Animated.Value(0));
+  const { mode } = useThemeStore();
+  const isRetroMode = mode === 'retro';
 
   const animateButton = () => {
     buttonAnim.setValue(0);
@@ -60,6 +64,72 @@ export const ControlTower: React.FC<ControlTowerProps> = ({
 
   if (!visible) return null;
 
+  // Retro mode render
+  if (isRetroMode) {
+    const handleRetroDirection = (direction: 'up' | 'down' | 'left' | 'right' | null) => {
+      switch (direction) {
+        case 'up': onUp(); break;
+        case 'down': onDown(); break;
+        case 'left': onLeft(); break;
+        case 'right': onRight(); break;
+      }
+    };
+
+    return (
+      <View style={[styles.container, styles.retroContainer]}>
+        {/* Tab Selection Display */}
+        <View style={styles.tabDisplay}>
+          <Text style={[styles.navLabel, styles.retroNavLabel]}>{'>>>'} NAVIGATE:</Text>
+          <View style={styles.tabRow}>
+            {availableTabs.map((tab, index) => {
+              const isActive = index === activeTabIndex;
+              return (
+                <Text
+                  key={tab}
+                  style={[
+                    styles.tabText,
+                    styles.retroTabText,
+                    isActive && styles.tabTextActive,
+                    isActive && styles.retroTabTextActive,
+                  ]}
+                >
+                  {tab}
+                </Text>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* Retro Status Bar */}
+        <View style={styles.retroStatusBar}>
+          <RetroStatusBar showLoad={false} />
+        </View>
+
+        {/* D-Pad Controls */}
+        <View style={styles.dPadContainer}>
+          <RetroDpad
+            size={100}
+            onDirection={handleRetroDirection}
+            onRelease={() => {}}
+          />
+
+          {/* Action Buttons */}
+          <View style={styles.retroActions}>
+            <RetroButton type="start" onPress={onEnter} />
+            <TouchableOpacity
+              style={[styles.closeButton, styles.retroCloseButton]}
+              onPress={onClose}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.closeButtonText, styles.retroCloseButtonText]}>✕</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  // Cyber mode render
   return (
     <View style={styles.container}>
       {/* Tab Selection Display */}
@@ -267,5 +337,35 @@ const styles = StyleSheet.create({
     color: Colors.status.error,
     fontSize: Typography.sizes.md,
     fontWeight: 'bold',
+  },
+  // Retro mode styles
+  retroContainer: {
+    backgroundColor: Colors.retro.bg,
+    borderTopColor: Colors.retro.lightGray,
+  },
+  retroNavLabel: {
+    color: Colors.retro.text,
+  },
+  retroTabText: {
+    color: Colors.retro.gray,
+  },
+  retroTabTextActive: {
+    color: Colors.retro.primary,
+    backgroundColor: Colors.retro.dark,
+  },
+  retroStatusBar: {
+    paddingHorizontal: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  retroActions: {
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  retroCloseButton: {
+    backgroundColor: Colors.retro.dark,
+    borderColor: Colors.retro.primary,
+  },
+  retroCloseButtonText: {
+    color: Colors.retro.primary,
   },
 });

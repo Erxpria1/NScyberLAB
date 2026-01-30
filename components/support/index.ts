@@ -1,1 +1,1 @@
-export { SupportScreen } from './SupportScreen';
+export { SupportScreen } from './CyberHome';

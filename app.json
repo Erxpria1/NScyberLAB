@@ -2,6 +2,7 @@
   "expo": {
     "name": "NScyberLab",
     "slug": "nscyber-lab",
+    "scheme": "nscyberlab",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

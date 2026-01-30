@@ -12,7 +12,7 @@
 | **Framework** | `react-native` |
 | **Type** | `node` |
 | **OS** | Windows |
-| **Path** | `C:\Users\enesi\Desktop\NScyberLab` |
+| **Path** | `c:\Users\enesi\Desktop\NScyberLab` |
 
 ---
 
@@ -20,39 +20,126 @@
 
 > **Legend:** `file.ts <- A.tsx, B.tsx` = This file is **imported by** A.tsx and B.tsx.
 > Directories with `[N files: ...]` are summarized to reduce size.
-> [STATS] Showing 12 files. 1 dirs summarized, 1 dirs excluded (node_modules, etc.)
+> [STATS] Showing 73 files. 7 dirs summarized, 3 dirs excluded (node_modules, etc.)
 
 
 ```
+.claude/
+  settings.local.json
 .expo/
   README.md
   devices.json
+  settings.json
+  web/
+    cache/
+      production/
+        images/ [1 files: 1 .png]
+.kilocode/
+  rules/
+    advanced-ai-protocols.md
+    code-review-agents.md
+    mobile-ui-design.md
+    turkish-communication.md
 app/
   _layout.tsx
   index.tsx
+  library.tsx
+  note-editor.tsx
+  pdf-reader.tsx
 assets/ [4 files: 4 .png]
 components/
+  beam/
+    AnimatedBeamDiagram.tsx ← index.ts, QuizScreen.tsx, AnimatedBeamDiagram.test.tsx
+    BeamEducationScreen.tsx ← index.ts, BeamEducationScreen.test.tsx
+    FormulaDisplay.tsx ← index.ts, FormulaDisplay.test.tsx
+    LessonPlayer.tsx ← BeamEducationScreen.tsx
+    QuizScreen.tsx ← BeamEducationScreen.tsx
+    ResultsScreen.tsx ← BeamEducationScreen.tsx
+    StepIndicator.tsx ← index.ts, StepIndicator.test.tsx
+    __tests__/ [7 files: 7 .tsx]
+    index.ts ← index.tsx
+  game-3d/
+    Game3DScreen.tsx ← index.ts
+    controls/
+      SwipeControls.tsx ← index.ts
+      VirtualJoystick.tsx ← index.ts
+      index.ts ← index.tsx
+    index.ts ← index.tsx
+    scenes/
+      BeamBucklingScene.tsx ← Game3DScreen.tsx, index.ts
+      TrussVisualizationScene.tsx ← Game3DScreen.tsx, index.ts
+      index.ts ← index.tsx
+    types.ts ← Game3DScreen.tsx, index.ts, VirtualJoystick.tsx +2 more
+  library/
+    LibraryScreen.tsx ← index.ts
+    index.ts ← index.tsx
+  math/
+    KatexRender.tsx ← index.ts
+    index.ts ← index.tsx
+  notes/
+    NoteEditor.tsx ← index.ts
+    index.ts ← index.tsx
+  reaction/
+    BeamTypeSelector.tsx ← index.ts, ReactionScreen.tsx, BeamTypeSelector.test.tsx
+    ReactionDiagrams.tsx ← index.ts, ReactionScreen.tsx
+    ReactionScreen.tsx ← index.ts
+    SVGIcons.tsx ← ReactionScreen.tsx
+    __tests__/ [1 files: 1 .tsx]
+    index.ts ← index.tsx
+  retro/
+    CRTOverlay.tsx ← index.ts
+    RetroButton.tsx ← index.ts
+    RetroCard.tsx ← index.ts
+    RetroDpad.tsx ← index.ts, index.ts
+    RetroStatusBar.tsx ← index.ts
+    index.ts ← index.tsx
+  support/
+    CyberHome.tsx ← index.ts
+    index.ts ← index.tsx
   terminal/
+    ControlTower.tsx ← index.ts, TerminalScreen.tsx
     TerminalScreen.tsx ← index.tsx
     index.ts ← index.tsx
-  ui/
+  theme/
+    RetroModeToggle.tsx ← index.ts
     index.ts ← index.tsx
-modules/
-  index.ts ← index.tsx
+data/
+  lessons/
+    index.ts ← index.tsx
+    simpleBeam.ts ← index.ts, index.ts
+e2e/
+  jest.config.js
 store/
-  useTerminalStore.ts ← _layout.tsx, TerminalScreen.tsx
+  __tests__/ [3 files: 3 .ts]
+  useEducationStore.ts ← useEducationStore.test.ts
+  useLibraryStore.ts ← LibraryScreen.tsx, NoteEditor.tsx
+  useReactionStore.ts ← useReactionStore.test.ts
+  useReminderStore.ts ← CyberHome.tsx
+  useTerminalStore.ts ← _layout.tsx, RetroStatusBar.tsx, TerminalScreen.tsx
+  useThemeStore.ts ← Game3DScreen.tsx, ControlTower.tsx, RetroModeToggle.tsx +1 more
 types/
+  education.ts ← useEducationStore.ts, useEducationStore.ts, useEducationStore.test.ts +7 more
   index.ts ← index.tsx
+  pdf.ts ← useLibraryStore.ts, markdownParser.ts, LibraryScreen.tsx +1 more
+  reminder.ts ← useReminderStore.ts, CyberHome.tsx
 utils/
+  __tests__/ [2 files: 2 .ts]
   math/
-    solver.ts ← index.ts
-  theme.ts ← TerminalScreen.tsx
+    turkishShortcuts.ts ← NoteEditor.tsx
+  notes/
+    markdownParser.ts ← NoteEditor.tsx
+  numberUtils.ts ← numberUtils.test.ts
+  storage.ts ← useEducationStore.ts, useLibraryStore.ts, useReactionStore.ts +2 more
+  structural/
+    __tests__/ [1 files: 1 .ts]
+    reactionCalculator.ts ← useReactionStore.ts, useReactionStore.ts, useReactionStore.test.ts +3 more
+  theme.ts ← pdf-reader.tsx, AnimatedBeamDiagram.tsx, BeamEducationScreen.tsx +24 more
 ```
 
 
 ## File Dependencies
 
-> Scanned 11 files
+> Scanned 85 files
 
 ### High-Impact Files
 
@@ -60,7 +147,11 @@ utils/
 
 | File | Imported by |
 |------|-------------|
-| `src/store/useTerminalStore` | 2 files |
+| `src/utils/theme` | 27 files |
+| `src/types/education` | 10 files |
+| `src/store/useEducationStore` | 8 files |
+| `src/utils/structural/reactionCalculator` | 6 files |
+| `src/utils/storage` | 5 files |
 
 
 ---

@@ -1,2 +1,0 @@
-// UI Components exports
-export {};

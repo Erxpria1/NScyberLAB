@@ -1,17 +1,29 @@
 import { storage } from '../storage';
 
-// Mock AsyncStorage at module level
-const mockGetItem = jest.fn();
-const mockSetItem = jest.fn();
-const mockRemoveItem = jest.fn();
+// Mock AsyncStorage with factory function that preserves the module shape
+jest.mock('@react-native-async-storage/async-storage', () => {
+  const mockImpl = {
+    getItem: jest.fn(),
+    setItem: jest.fn(),
+    removeItem: jest.fn(),
+    multiGet: jest.fn(),
+    multiSet: jest.fn(),
+    multiRemove: jest.fn(),
+    clear: jest.fn(),
+    getAllKeys: jest.fn(),
+  };
+  return {
+    __esModule: true,
+    default: mockImpl,
+    ...mockImpl,
+  };
+});
 
-jest.mock('@react-native-async-storage/async-storage', () => ({
-  default: {
-    getItem: mockGetItem,
-    setItem: mockSetItem,
-    removeItem: mockRemoveItem,
-  },
-}));
+// Import the mocked module after the mock is set up
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Use the mock directly
+const mockedAsyncStorage = AsyncStorage as jest.Mocked<typeof AsyncStorage>;
 
 describe('storage', () => {
   beforeEach(() => {
@@ -20,16 +32,16 @@ describe('storage', () => {
 
   describe('getItem', () => {
     it('adds prefix to key and calls AsyncStorage', async () => {
-      mockGetItem.mockResolvedValue('test-value');
+      mockedAsyncStorage.getItem.mockResolvedValue('test-value');
 
       const result = await storage.getItem('test-key');
 
       expect(result).toBe('test-value');
-      expect(mockGetItem).toHaveBeenCalledWith('@nscyberlab_test-key');
+      expect(mockedAsyncStorage.getItem).toHaveBeenCalledWith('@nscyberlab_test-key');
     });
 
     it('returns null on error', async () => {
-      mockGetItem.mockRejectedValue(new Error('Storage error'));
+      mockedAsyncStorage.getItem.mockRejectedValue(new Error('Storage error'));
 
       const result = await storage.getItem('test-key');
 
@@ -37,7 +49,7 @@ describe('storage', () => {
     });
 
     it('returns null when value does not exist', async () => {
-      mockGetItem.mockResolvedValue(null);
+      mockedAsyncStorage.getItem.mockResolvedValue(null);
 
       const result = await storage.getItem('nonexistent');
 
@@ -47,15 +59,15 @@ describe('storage', () => {
 
   describe('setItem', () => {
     it('adds prefix to key and calls AsyncStorage', async () => {
-      mockSetItem.mockResolvedValue(undefined);
+      mockedAsyncStorage.setItem.mockResolvedValue(undefined);
 
       await storage.setItem('test-key', 'test-value');
 
-      expect(mockSetItem).toHaveBeenCalledWith('@nscyberlab_test-key', 'test-value');
+      expect(mockedAsyncStorage.setItem).toHaveBeenCalledWith('@nscyberlab_test-key', 'test-value');
     });
 
     it('does not throw on error', async () => {
-      mockSetItem.mockRejectedValue(new Error('Storage error'));
+      mockedAsyncStorage.setItem.mockRejectedValue(new Error('Storage error'));
 
       await expect(storage.setItem('test-key', 'test-value')).resolves.toBeUndefined();
     });
@@ -63,15 +75,15 @@ describe('storage', () => {
 
   describe('removeItem', () => {
     it('adds prefix to key and calls AsyncStorage', async () => {
-      mockRemoveItem.mockResolvedValue(undefined);
+      mockedAsyncStorage.removeItem.mockResolvedValue(undefined);
 
       await storage.removeItem('test-key');
 
-      expect(mockRemoveItem).toHaveBeenCalledWith('@nscyberlab_test-key');
+      expect(mockedAsyncStorage.removeItem).toHaveBeenCalledWith('@nscyberlab_test-key');
     });
 
     it('does not throw on error', async () => {
-      mockRemoveItem.mockRejectedValue(new Error('Storage error'));
+      mockedAsyncStorage.removeItem.mockRejectedValue(new Error('Storage error'));
 
       await expect(storage.removeItem('test-key')).resolves.toBeUndefined();
     });

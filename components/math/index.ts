@@ -1,1 +1,3 @@
-export { KatexRender, EngineeringFormulas } from './KatexRender';
+export * from './KatexRender';
+export * from './MathRenderer';
+export * from './Math';

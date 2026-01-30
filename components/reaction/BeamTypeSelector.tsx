@@ -138,15 +138,15 @@ const styles = StyleSheet.create({
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
   },
   lengthBadge: {
     fontFamily: Typography.family.mono,
-    fontSize: Typography.sizes.xs - 1,
+    fontSize: Typography.sizes.xs,
     color: Colors.gray[300],
     backgroundColor: Colors.black,
     paddingHorizontal: 6,
     paddingVertical: 2,
+    marginRight: Spacing.sm,
   },
   chevron: {
     fontSize: 10,
@@ -163,7 +163,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingVertical: Spacing.sm,
-    gap: Spacing.xs,
   },
   button: {
     width: BUTTON_WIDTH,
@@ -174,7 +173,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    marginHorizontal: 4,
   },
   buttonActive: {
     backgroundColor: Colors.amber.bg,
@@ -182,16 +181,16 @@ const styles = StyleSheet.create({
   },
   schematic: {
     fontFamily: Typography.family.mono,
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.gray[300],
-    letterSpacing: -0.5,
+    marginBottom: 4,
   },
   schematicActive: {
     color: Colors.amber.secondary,
   },
   label: {
     fontFamily: Typography.family.mono,
-    fontSize: Typography.sizes.xs - 1,
+    fontSize: Typography.sizes.xs,
     color: Colors.amber.primary,
   },
   labelActive: {

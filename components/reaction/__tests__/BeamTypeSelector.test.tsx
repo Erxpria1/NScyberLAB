@@ -8,15 +8,11 @@ jest.mock('@/store/useReactionStore');
 const mockedUseReactionStore = useReactionStore as jest.MockedFunction<typeof useReactionStore>;
 
 // Mock AsyncStorage for the storage import
-const mockGetItem = jest.fn();
-const mockSetItem = jest.fn();
-const mockRemoveItem = jest.fn();
-
 jest.mock('@react-native-async-storage/async-storage', () => ({
   default: {
-    getItem: mockGetItem,
-    setItem: mockSetItem,
-    removeItem: mockRemoveItem,
+    getItem: jest.fn(),
+    setItem: jest.fn(),
+    removeItem: jest.fn(),
   },
 }));
 

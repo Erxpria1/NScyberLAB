@@ -1,30 +1,22 @@
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react-native';
 import { useReactionStore } from '../useReactionStore';
 import { SupportType, LoadType } from '@/utils/structural/reactionCalculator';
 
-// Mock AsyncStorage
-const mockGetItem = jest.fn();
-const mockSetItem = jest.fn();
-const mockRemoveItem = jest.fn();
-
-jest.mock('@react-native-async-storage/async-storage', () => ({
-  default: {
-    getItem: mockGetItem,
-    setItem: mockSetItem,
-    removeItem: mockRemoveItem,
-  },
-}));
+// Mock AsyncStorage using the official mock
+jest.mock('@react-native-async-storage/async-storage',
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock')
+);
 
 // Mock storage
 jest.mock('@/utils/storage', () => ({
   storage: {
-    getItem: mockGetItem,
-    setItem: mockSetItem,
-    removeItem: mockRemoveItem,
+    getItem: jest.fn(),
+    setItem: jest.fn(),
+    removeItem: jest.fn(),
   },
 }));
 
-// Mock reaction calculator
+// Mock reaction calculator - preserve enum exports
 const mockCalculateReactions = jest.fn(() => ({
   reactions: [
     { force: 5, position: 0, type: 'PINNED' },
@@ -39,28 +31,15 @@ const mockCalculateReactions = jest.fn(() => ({
   maxDeflection: { value: 0, position: 0 },
 }));
 
-jest.mock('@/utils/structural/reactionCalculator', () => ({
-  calculateReactions: () => mockCalculateReactions(),
-  PRESET_SYSTEMS: {
-    simple: {
-      name: 'Basit Kiriş',
-      length: 6,
-      supports: [{ type: 'PINNED', position: 0 }, { type: 'ROLLER', position: 6 }],
-      loads: [{ type: 'POINT', position: 3, magnitude: 10 }],
-    },
-  },
-  getAllPresets: jest.fn(() => []),
-  getBeamTypeById: jest.fn(() => ({
-    id: 'simple',
-    name: 'Basit Kiriş',
-    description: 'Test',
-    defaultConfig: () => ({
-      length: 6,
-      supports: [{ type: 'PINNED', position: 0 }, { type: 'ROLLER', position: 6 }],
-      loads: [],
-    }),
-  })),
-}));
+jest.mock('@/utils/structural/reactionCalculator', () => {
+  const actualModule = jest.requireActual('@/utils/structural/reactionCalculator');
+  return {
+    ...actualModule,
+    calculateReactions: jest.fn(() => mockCalculateReactions()),
+    getAllPresets: jest.fn(() => actualModule.getAllPresets?.() || {}),
+    getBeamTypeById: jest.fn((id: string) => actualModule.getBeamTypeById(id)),
+  };
+});
 
 describe('useReactionStore', () => {
   beforeEach(() => {
@@ -209,12 +188,12 @@ describe('useReactionStore', () => {
       const { result } = renderHook(() => useReactionStore());
 
       act(() => {
-        result.current.loadPreset('simple');
+        result.current.loadPreset('simply-supported-point');
       });
 
       expect(result.current.beamLength).toBe(6);
       expect(result.current.loads).toHaveLength(1);
-      expect(result.current.selectedPreset).toBe('simple');
+      expect(result.current.selectedPreset).toBe('simply-supported-point');
       expect(result.current.showResults).toBe(true);
     });
   });

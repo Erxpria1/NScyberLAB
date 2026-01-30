@@ -133,6 +133,7 @@ export function handleTurkishChars(latex: string): string {
     .replace(/ö/g, '\\text{ö}')
     .replace(/Ö/g, '\\text{Ö}')
     .replace(/ı/g, '\\text{ı}')
+    .replace(/i/g, '\\text{i}') // Explicitly handle lower i to avoid dot issues in some fonts
     .replace(/İ/g, '\\text{İ}')
     .replace(/ç/g, '\\text{ç}')
     .replace(/Ç/g, '\\text{Ç}');

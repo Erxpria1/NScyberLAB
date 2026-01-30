@@ -1,24 +1,16 @@
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React from 'react';
+import { StyleSheet } from 'react-native';
 import { Colors, Typography } from '@/utils/theme';
+import { MathRenderer } from './MathRenderer';
 
-interface KatexRenderProps {
+export interface KatexRenderProps {
   formula: string;
   displayMode?: boolean;
   color?: string;
   fontSize?: number;
-  fallback?: string; // Plain text fallback if KaTeX not available
+  fallback?: string;
 }
 
-/**
- * KaTeX Formula Renderer for React Native
- *
- * Since react-native-katex has compatibility issues with React 19,
- * we use a multi-layer fallback approach:
- * 1. Try to render as formatted Unicode math
- * 2. Fall back to raw LaTeX string
- * 3. Can be extended with WebView KaTeX later if needed
- */
 export const KatexRender: React.FC<KatexRenderProps> = ({
   formula,
   displayMode = false,
@@ -26,27 +18,15 @@ export const KatexRender: React.FC<KatexRenderProps> = ({
   fontSize = Typography.sizes.equation,
   fallback,
 }) => {
-  // Convert basic LaTeX to Unicode for better readability
-  const formattedFormula = useMemo(() => {
-    return latexToUnicode(formula);
-  }, [formula]);
-
+  // Use high-fidelity MathRenderer as default
   return (
-    <View style={[styles.container, displayMode && styles.displayMode]}>
-      <Text
-        style={[
-          styles.formula,
-          { color, fontSize },
-        ]}
-        selectable={true}
-      >
-        {formattedFormula}
-      </Text>
-      {/* Show raw LaTeX as caption for reference */}
-      {fallback && formula !== fallback && (
-        <Text style={styles.latexSource}>{formula}</Text>
-      )}
-    </View>
+    <MathRenderer
+      formula={formula}
+      displayMode={displayMode}
+      fontSize={fontSize}
+      color={color}
+      style={[styles.container, displayMode && styles.displayMode]}
+    />
   );
 };
 

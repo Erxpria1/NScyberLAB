@@ -3,9 +3,9 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import type { CommandHistory, SystemStatus } from '@/types';
 import { storage } from '@/utils/storage';
 
-export type ActiveScreen = 'terminal' | 'reaction' | 'beam' | 'truss' | 'calc' | '3d' | 'pdf' | 'support';
+export type ActiveScreen = 'terminal' | 'reaction' | 'beam' | 'truss' | 'section' | 'material' | 'loads' | 'calc' | '3d' | 'pdf' | 'support';
 
-export const AVAILABLE_TABS = ['PDF', 'SUPPORT', 'REACTION', 'BEAM', 'TRUSS', 'CALC', '3D'] as const;
+export const AVAILABLE_TABS = ['PDF', 'CYBERHOME', 'REACTION', 'BEAM', 'TRUSS', 'SECTION', 'MATERIAL', 'LOADS', 'CALC', '3D'] as const;
 
 interface TerminalState {
   commandHistory: CommandHistory[];
