@@ -34,7 +34,6 @@
     cache/
       production/
         images/ [1 files: 1 .png]
-.kilocode/
   rules/
     advanced-ai-protocols.md
     code-review-agents.md
